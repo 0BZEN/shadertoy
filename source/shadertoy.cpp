@@ -424,10 +424,13 @@ void main(int argc, char* argv[])
     tm time_now;
     localtime_s(&time_now, &now);
 
-    int displayId = (argc >= 2)? atoi(argv[2]) : 3;
-    const char* fragment_shader_filename = (argc >= 3)? argv[3] : "./shaders/cartoon.shader";
-	frame_buffer_width = (argc >= 4)? atoi(argv[3]) : 640;
-    frame_buffer_height = (argc >= 5)? atoi(argv[4]) : 480;
+    const char* shader_file = (argc > 1)? argv[1] : "cartoon";
+	int displayId = (argc > 2)? atoi(argv[2]) : 1;
+    frame_buffer_width = (argc > 3)? atoi(argv[3]) : 640;
+    frame_buffer_height = (argc > 4)? atoi(argv[4]) : 480;
+
+	char fragment_shader_filename[128];
+	sprintf_s(fragment_shader_filename, sizeof(fragment_shader_filename), "./shaders/%s.shader", shader_file);
 	
 	setup_display(displayId);
     
