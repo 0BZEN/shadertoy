@@ -11,3 +11,6 @@ run shadertoy.exe <shadername> <display_id> <frame_buffer_width> <frame_buffer_h
 
 e.g. : "shadertoy.exe leizex 2 1024 768" will run the leizex shader, on display #2, at 1024x768.
 
+the Shadertoys are very demanding on the GPU (most run a complex ray-marching algo on procedural content). 
+
+Reducing the frame buffer resolution increases framerate but decreases quality.
