@@ -1,7 +1,6 @@
 #include <windows.h>
 #include <GL/glew.h>
 #include <GL/gl.h>
-#include <GL/glu.h>
 #include <stdio.h>
 #include <time.h>
 #include <limits>
@@ -13,7 +12,6 @@
 
 #pragma comment(lib, "Winmm.lib")
 #pragma comment(lib, "opengl32.lib")
-#pragma comment(lib, "glu32.lib")
 #pragma comment(lib, "glew32.lib")
 
 void trace(const char* format, ...) 
