@@ -425,7 +425,7 @@ void main(int argc, char* argv[])
     localtime_s(&time_now, &now);
 
     int displayId = (argc >= 2)? atoi(argv[2]) : 3;
-    const char* fragment_shader_filename = (argc >= 3)? argv[3] : "./shaders/road_to_hell.shader";
+    const char* fragment_shader_filename = (argc >= 3)? argv[3] : "./shaders/cartoon.shader";
 	frame_buffer_width = (argc >= 4)? atoi(argv[3]) : 640;
     frame_buffer_height = (argc >= 5)? atoi(argv[4]) : 480;
 	
