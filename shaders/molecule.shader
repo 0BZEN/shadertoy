@@ -1,3 +1,5 @@
+
+uniform vec3      iOffset;				 // viewport offset (in pixels)
 uniform vec3      iResolution;           // viewport resolution (in pixels)
 uniform float     iGlobalTime;           // shader playback time (in seconds)
 uniform float     iChannelTime[4];       // channel playback time (in seconds)
@@ -241,15 +243,14 @@ vec3 getBackground(vec2 uv) {
 
 void main(void) {
 	
-	vec2 uv = gl_FragCoord.xy / iResolution.xy * 2.0 - 1.0;
+	vec2 uv = (gl_FragCoord.xy - iOffset.xy) / iResolution.xy * 2.0 - 1.0;
 	uv.y *= iResolution.y / iResolution.x;
 	
 	vec3 from = vec3(-10, 0, 0);
 	vec3 dir = normalize(vec3(uv * FOV, 1.0));
 	dir.xz *= rot(3.1415*.5);
 	
-	vec2 mouse=(iMouse.xy / iResolution.xy - 0.5) * 3.0;
-	if (iMouse.z < 1.0) mouse = vec2(0.0);
+	vec2 mouse=vec2(0.0);
 	
 	mat2 rotxz = rot(iGlobalTime*0.652+mouse.x);
 	mat2 rotxy = rot(sin(iGlobalTime*0.814)*.3+mouse.y);

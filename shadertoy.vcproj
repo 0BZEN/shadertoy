@@ -166,7 +166,23 @@
 	</References>
 	<Files>
 		<File
+			RelativePath=".\source\oculus.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\source\oculus.h"
+			>
+		</File>
+		<File
 			RelativePath=".\source\shadertoy.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\source\utils.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\source\utils.h"
 			>
 		</File>
 	</Files>

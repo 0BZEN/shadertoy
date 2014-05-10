@@ -9,6 +9,7 @@
 
 // update: Nyan Cat cameo, thanks to code from mu6k: https://www.shadertoy.com/view/4dXGWH
 
+uniform vec3      iOffset;				 // viewport offset (in pixels)
 uniform vec3      iResolution;           // viewport resolution (in pixels)
 uniform float     iGlobalTime;           // shader playback time (in seconds)
 uniform float     iChannelTime[4];       // channel playback time (in seconds)
@@ -24,6 +25,7 @@ uniform vec4      iDate;                 // (year, month, day, time in seconds)
 //#define NYAN 
 #define WAVES
 #define BORDER
+#define OCULUS
 
 #define RAY_STEPS 150
 
@@ -212,7 +214,7 @@ vec3 move(inout vec3 dir) {
 
 void main(void)
 {
-	vec2 uv = gl_FragCoord.xy / iResolution.xy*2.-1.;
+	vec2 uv = (gl_FragCoord.xy - iOffset.xy) / iResolution.xy*2.0 -1.0;
 	vec2 oriuv=uv;
 	uv.y*=iResolution.y/iResolution.x;
 	float fov=.9-max(0.,.7-iGlobalTime*.3);

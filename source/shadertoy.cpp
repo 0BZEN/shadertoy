@@ -1,154 +1,12 @@
-#include <windows.h>
-#include <GL/glew.h>
-#include <GL/gl.h>
-#include <stdio.h>
-#include <time.h>
-#include <limits>
-#include <string>
-#include <vector>
-#include <iostream>
-#include <fstream>
-#include <algorithm>
 
-#pragma comment(lib, "Winmm.lib")
-#pragma comment(lib, "opengl32.lib")
-#pragma comment(lib, "glew32.lib")
+#include "utils.h"
+#include "oculus.h"
 
-void trace(const char* format, ...) 
-{
-    char* temp = new char[65536];
-    va_list args;
-    va_start(args, format);
-    vsprintf_s(temp, 65536, format, args);
-    va_end(args);
+// oculus device
+OculusDevice oculus;
 
-    OutputDebugString(temp);
-    OutputDebugString("\n");
-
-    std::ofstream fout("log.txt", std::ofstream::out | std::ofstream::app);
-    std::cout << temp << std::endl;
-    fout << temp << std::endl;
-
-    delete[] temp;
-}
-
-void debug_break() 
-{ 
-    __asm int 3; 
-}
-
-#define TRACE(A, ...) { trace("[TRACE] " A, __VA_ARGS__); }
-#define WARN(A, ...) { trace("[WARN]  " A, __VA_ARGS__); }
-#define FATAL(A, ...) { trace("[FATAL] " A, __VA_ARGS__); debug_break(); }
-#define ASSERT(A) { if(!(A)) { trace("[ASSERT] " #A); debug_break(); } }
-
-
-GLuint load_shaders(const char * vertex_file_path, const char * fragment_file_path)
-{
-    // Create the shaders
-    GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
-    GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
-
-    // Read the Vertex Shader code from the file
-    std::string VertexShaderCode;
-    std::ifstream VertexShaderStream(vertex_file_path, std::ios::in);
-    if(VertexShaderStream.is_open())
-    {
-        std::string Line = "";
-        while(getline(VertexShaderStream, Line))
-            VertexShaderCode += "\n" + Line;
-        VertexShaderStream.close();
-    }
-    else
-    {
-        FATAL("Impossible to open %s. Are you in the right directory ? Don't forget to read the FAQ !", vertex_file_path);
-        return 0;
-    }
-
-    // Read the Fragment Shader code from the file
-    std::string FragmentShaderCode;
-    std::ifstream FragmentShaderStream(fragment_file_path, std::ios::in);
-    if(FragmentShaderStream.is_open())
-    {
-        std::string Line = "";
-        while(getline(FragmentShaderStream, Line))
-            FragmentShaderCode += "\n" + Line;
-        FragmentShaderStream.close();
-    }
-    else
-    {
-        FATAL("Impossible to open %s. Are you in the right directory ? Don't forget to read the FAQ !", fragment_file_path);
-        return 0;
-    }
-
-
-    GLint Result = GL_FALSE;
-    int InfoLogLength;
-
-    // Compile Vertex Shader
-    TRACE("compiling shader : %s", vertex_file_path);
-    char const * VertexSourcePointer = VertexShaderCode.c_str();
-    glShaderSource(VertexShaderID, 1, &VertexSourcePointer , NULL);
-    glCompileShader(VertexShaderID);
-
-    // Check Vertex Shader
-    glGetShaderiv(VertexShaderID, GL_COMPILE_STATUS, &Result);
-    glGetShaderiv(VertexShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    if ( InfoLogLength > 1 )
-    {
-        char* Info = new char[InfoLogLength + 1];
-        glGetShaderInfoLog(VertexShaderID, InfoLogLength, NULL, Info);
-        WARN("%s", Info);
-        delete[] Info;
-    }
-
-    // Compile Fragment Shader
-    TRACE("compiling shader : %s", fragment_file_path);
-    char const * FragmentSourcePointer = FragmentShaderCode.c_str();
-    glShaderSource(FragmentShaderID, 1, &FragmentSourcePointer , NULL);
-    glCompileShader(FragmentShaderID);
-
-    // Check Fragment Shader
-    glGetShaderiv(FragmentShaderID, GL_COMPILE_STATUS, &Result);
-    glGetShaderiv(FragmentShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    if ( InfoLogLength > 1 )
-    {
-        char* Info = new char[InfoLogLength + 1];
-        glGetShaderInfoLog(FragmentShaderID, InfoLogLength, NULL, Info);
-        WARN("%s", Info);
-        delete[] Info;
-    }
-
-    // Link the program
-    TRACE("linking program...");
-    GLuint ProgramID = glCreateProgram();
-    glAttachShader(ProgramID, VertexShaderID);
-    glAttachShader(ProgramID, FragmentShaderID);
-    glLinkProgram(ProgramID);
-
-    // Check the program
-    glGetProgramiv(ProgramID, GL_LINK_STATUS, &Result);
-    glGetProgramiv(ProgramID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    if ( InfoLogLength > 1 )
-    {
-        char* Info = new char[InfoLogLength + 1];
-        glGetProgramInfoLog(ProgramID, InfoLogLength, NULL, Info);
-        WARN("%s", Info);
-        delete[] Info;
-    }
-	else
-	{
-		TRACE("shaders program compiled.");
-	}
-
-    glDeleteShader(VertexShaderID);
-    glDeleteShader(FragmentShaderID);
-
-    return ProgramID;
-}
-
-// screen size.
-DEVMODE dmScreenSettings = { 0,0,0,sizeof(DEVMODE),0,DM_PELSWIDTH|DM_PELSHEIGHT, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1024, 768,0,0,0,0,0,0,0,0,0,0 };
+// display.
+DEVMODE dmScreenSettings;
 
 // buffer size.
 GLboolean frame_buffer_enabled = true;
@@ -289,13 +147,33 @@ GLint load_fragment_shader(const char* fragment_file_path)
     return ProgramID;
 }
 
-void update_uniform_params_buffer()
+void update_uniform_params_buffer(OVR::Util::Render::StereoEye eye)
 {
-    // In your code load your shaders, link your program and call:
-    int iResolution = glGetUniformLocation(fragment_shader_program, "iResolution");
-    int iGlobalTime = glGetUniformLocation(fragment_shader_program, "iGlobalTime");
-    glUniform3f(iResolution, (float)frame_buffer_width, (float)frame_buffer_height, 0.0f);
-    glUniform1f(iGlobalTime, (float)frame_time / 1000.0f);
+	if(eye == OVR::Util::Render::StereoEye_Center)
+	{
+		// In your code load your shaders, link your program and call:
+		gl_uniform_3f(fragment_shader_program, "iOffset",	  0.0f, 0.0f, 0.0f);
+		gl_uniform_3f(fragment_shader_program, "iResolution", (float)frame_buffer_width, (float)frame_buffer_height, 0.0f);
+		gl_uniform_1f(fragment_shader_program, "iGlobalTime", (float)frame_time / 1000.0f);
+	}
+	else if(eye == OVR::Util::Render::StereoEye_Left)
+	{
+		// In your code load your shaders, link your program and call:
+		gl_uniform_3f(fragment_shader_program, "iOffset",	  0.0f, 0.0f, 0.0f);
+		gl_uniform_3f(fragment_shader_program, "iResolution", (float)frame_buffer_width / 2, (float)frame_buffer_height, 0.0f);
+		gl_uniform_1f(fragment_shader_program, "iGlobalTime", (float)frame_time / 1000.0f);
+	}
+	else if(eye == OVR::Util::Render::StereoEye_Right)
+	{
+		// In your code load your shaders, link your program and call:
+		gl_uniform_3f(fragment_shader_program, "iOffset",	  (float)frame_buffer_width / 2, 0.0f, 0.0f);
+		gl_uniform_3f(fragment_shader_program, "iResolution", (float)frame_buffer_width / 2, (float)frame_buffer_height, 0.0f);
+		gl_uniform_1f(fragment_shader_program, "iGlobalTime", (float)frame_time / 1000.0f);
+	}
+	else
+	{
+		FATAL("invalid eye(%d)", eye);
+	}
 }
 
 void scene_to_buffer(void)
@@ -304,24 +182,34 @@ void scene_to_buffer(void)
 	{
 		glViewport(0, 0, frame_buffer_width, frame_buffer_height);
 
-		// render to buffer.
-		glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer);
-		glUseProgram(fragment_shader_program);
+		if(oculus.has_display())
+		{
+			// render to buffer.
+			glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer);
+			glUseProgram(fragment_shader_program);
 
-		update_uniform_params_buffer();
-	    
-		// render full quad, using the selected fragment shader.
-		glRecti(-1, -1, 1, 1);
+			update_uniform_params_buffer(OVR::Util::Render::StereoEye_Left);
+			glRecti(-1, -1, 0, 1);
+
+			update_uniform_params_buffer(OVR::Util::Render::StereoEye_Right);
+			glRecti(0, -1, 1, 1);
+		}
+		else
+		{
+			// render to buffer.
+			glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer);
+			glUseProgram(fragment_shader_program);
+
+			update_uniform_params_buffer(OVR::Util::Render::StereoEye_Center);
+			glRecti(-1, -1, 1, 1);
+		}
 	}
 }
 
 void update_uniform_params_screen()
 {
-    // In your code load your shaders, link your program and call:
-    int iResolution = glGetUniformLocation(fragment_shader_program, "iResolution");
-    int iGlobalTime = glGetUniformLocation(fragment_shader_program, "iGlobalTime");
-	glUniform3f(iResolution, (float)dmScreenSettings.dmPelsWidth, (float)dmScreenSettings.dmPelsHeight, 0.0f);
-    glUniform1f(iGlobalTime, (float)frame_time / 1000.0f);
+    gl_uniform_3f(fragment_shader_program, "iResolution", (float)dmScreenSettings.dmPelsWidth, (float)dmScreenSettings.dmPelsHeight, 0.0f);
+    gl_uniform_1f(fragment_shader_program, "iGlobalTime", (float)frame_time / 1000.0f);
 }
 
 void buffer_to_display(void)
@@ -333,6 +221,19 @@ void buffer_to_display(void)
 		update_uniform_params_screen();
 		glUseProgram(fragment_shader_program);
 		glRecti(-1, -1, 1, 1);
+	}
+	else if(oculus.has_display())
+	{
+		// Render to the screen
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glUseProgram(0);
+		
+		glEnable(GL_TEXTURE_2D);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, frame_buffer_texture);
+
+		oculus.render(OVR::Util::Render::StereoEye_Left);
+		oculus.render(OVR::Util::Render::StereoEye_Right);
 	}
 	else
 	{
@@ -406,16 +307,51 @@ void setup_display(int display_id)
 	}
 }
 
-HDC create_window()
+HWND create_window()
 {
 	PIXELFORMATDESCRIPTOR pfd = { 0,1,PFD_SUPPORT_OPENGL|PFD_DOUBLEBUFFER, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0 };
 
 	//ChangeDisplaySettings(&dmScreenSettings, CDS_FULLSCREEN);
-	HDC hDC = GetDC(CreateWindow("edit",0, WS_POPUP | WS_VISIBLE | WS_MAXIMIZE, dmScreenSettings.dmPosition.x, dmScreenSettings.dmPosition.y, dmScreenSettings.dmPelsWidth, dmScreenSettings.dmPelsHeight, 0, 0, 0, 0));
+	HWND hWND = CreateWindow("edit",0, WS_POPUP | WS_VISIBLE | WS_MAXIMIZE, dmScreenSettings.dmPosition.x, dmScreenSettings.dmPosition.y, dmScreenSettings.dmPelsWidth, dmScreenSettings.dmPelsHeight, 0, 0, 0, 0);
+	HDC hDC = GetDC(hWND);
     SetPixelFormat(hDC, ChoosePixelFormat(hDC, &pfd) , &pfd);
     wglMakeCurrent(hDC, wglCreateContext(hDC));
     ShowCursor(0);
-	return hDC;
+	return hWND;
+}
+
+ 
+void captureToClipboard(HWND hWND)
+{
+	if ( OpenClipboard(hWND) )
+	{
+		EmptyClipboard();
+
+		HDC hDC = GetDC(hWND);
+
+		// and a device context to put it in
+		HDC hMemoryDC = CreateCompatibleDC(hDC);
+
+		int width = GetDeviceCaps(hDC, HORZRES);
+		int height = GetDeviceCaps(hDC, VERTRES);
+
+		// maybe worth checking these are positive values
+		HBITMAP hBitmap = CreateCompatibleBitmap(hDC, width, height);
+
+		// get a new bitmap
+		HBITMAP hOldBitmap = (HBITMAP)SelectObject(hMemoryDC, hBitmap);
+
+		BOOL result = BitBlt(hMemoryDC, 0, 0, width, height, hDC, 0, 0, SRCCOPY);
+
+		hBitmap = (HBITMAP)SelectObject(hMemoryDC, hOldBitmap);
+
+		HANDLE handle = SetClipboardData(CF_BITMAP, hBitmap);
+	
+		result = CloseClipboard();
+
+		// clean up
+		DeleteDC(hMemoryDC);
+	}
 }
 
 void main(int argc, char* argv[])
@@ -424,10 +360,10 @@ void main(int argc, char* argv[])
     tm time_now;
     localtime_s(&time_now, &now);
 
-    const char* shader_file = (argc > 1)? argv[1] : "cartoon";
+    const char* shader_file = (argc > 1)? argv[1] : "molecule";
 	int displayId = (argc > 2)? atoi(argv[2]) : 1;
-    frame_buffer_width = (argc > 3)? atoi(argv[3]) : 640;
-    frame_buffer_height = (argc > 4)? atoi(argv[4]) : 480;
+    frame_buffer_width = (argc > 3)? atoi(argv[3]) : 800;
+    frame_buffer_height = (argc > 4)? atoi(argv[4]) : 600;
 
 	char fragment_shader_filename[128];
 	sprintf_s(fragment_shader_filename, sizeof(fragment_shader_filename), "./shaders/%s.shader", shader_file);
@@ -442,9 +378,12 @@ void main(int argc, char* argv[])
     TRACE("- shader             : %s", fragment_shader_filename);
     TRACE("- date               : %s", asctime(&time_now));
 	
-	HDC hDC = create_window();
-    
+	HWND hWND = create_window();
+	HDC hDC = GetDC(hWND);    
+
 	init_opengl();
+
+	oculus.start();
 
     create_buffer();
 
@@ -462,15 +401,21 @@ void main(int argc, char* argv[])
 
         buffer_to_display();
 
-        SwapBuffers(hDC);
-
-        Sleep(1);
+		if (GetAsyncKeyState(VK_SNAPSHOT)) 
+		{
+			captureToClipboard(hWND);
+		}
 
         if (GetAsyncKeyState(VK_ESCAPE)) 
 		{
 			TRACE("- average : %.3f fps", frame_count / (float)(frame_time / 1000.0f));
 			TRACE("------------------------------------------------------");
+			oculus.stop();
             ExitProcess(0);
 		}
+
+		SwapBuffers(hDC);
+
+        Sleep(1);
     }
 };

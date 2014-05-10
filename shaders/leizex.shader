@@ -10,6 +10,7 @@ struct HMD
 	vec3 forward;	// direction at front of hmd.
 };
 
+uniform vec3      iOffset;				 // viewport offset (in pixels)
 uniform vec3      iResolution;           // viewport resolution (in pixels)
 uniform float     iGlobalTime;           // shader playback time (in seconds)
 uniform float     iChannelTime[4];       // channel playback time (in seconds)
@@ -173,7 +174,7 @@ vec3 addbump( in vec3 nor, float bumpa, in vec3 x )
 
 void main(void)
 {
-    vec2 p = -1.0 + 2.0 * gl_FragCoord.xy / iResolution.xy;
+    vec2 p = -1.0 + 2.0 * (gl_FragCoord.xy - iOffset.xy) / iResolution.xy;
 
     // generate ray
     vec3 ro, rd;

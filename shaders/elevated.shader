@@ -1,3 +1,5 @@
+
+uniform vec3      iOffset;				 // viewport offset (in pixels)
 uniform vec3      iResolution;           // viewport resolution (in pixels)
 uniform float     iGlobalTime;           // shader playback time (in seconds)
 
@@ -181,7 +183,7 @@ vec3 camPath( float time )
 
 void main(void)
 {
-    vec2 xy = -1.0 + 2.0*gl_FragCoord.xy / iResolution.xy;
+    vec2 xy = -1.0 + 2.0*(gl_FragCoord.xy - iOffset.xy) / iResolution.xy;
 
 	vec2 s = xy*vec2(1.75,1.0);
 

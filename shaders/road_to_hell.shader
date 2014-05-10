@@ -1,3 +1,5 @@
+
+uniform vec3      iOffset;				 // viewport offset (in pixels)
 uniform vec3      iResolution;           // viewport resolution (in pixels)
 uniform float     iGlobalTime;           // shader playback time (in seconds)
 uniform float     iChannelTime[4];       // channel playback time (in seconds)
@@ -51,7 +53,7 @@ float draw_scene(vec3 p)
 
 void main(void)
 	{
-	vec2 position=(gl_FragCoord.xy/iResolution.xy);
+	vec2 position=((gl_FragCoord.xy-iOffset.xy)/iResolution.xy);
 	vec2 p=-1.0+2.0*position;
 	vec3 dir=normalize(vec3(p*vec2(1.77,1.0),1.0));		// screen ratio (x,y) fov (z)
 	//dir.yz=rotate(dir.yz,PI*0.5*sin(PI*speed*0.125));	// rotation x
