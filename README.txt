@@ -14,3 +14,15 @@ e.g. : "shadertoy.exe leizex 2 1024 768" will run the leizex shader, on display 
 the Shadertoys are very demanding on the GPU (most run a complex ray-marching algo on procedural content). 
 
 Reducing the frame buffer resolution increases framerate but decreases quality.
+
+
+command line parameters : e.g. shader=cartoon display=2 resx=1024 resy=1024 tex0=empty tex1=nyan
+
+
+shader : what shader to select from the 'shaders' folder.
+
+display : what display deviceto use.
+
+resx, resy : resolution of the back buffer.
+
+tex0, tex1, tex2, tex3 : what texture to select from the 'textures' folder, for each texture channel. See ShaderToy website to be sure.
