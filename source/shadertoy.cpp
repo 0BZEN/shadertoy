@@ -363,7 +363,7 @@ int SDL_main(int argc, char * argv[])
 	asctime_s(date_now, sizeof(date_now), &time_now);
 
     fragment_shader_name = (argc > 1)? argv[1] : "cartoon";
-	int displayId = (argc > 2)? atoi(argv[2]) : 3;
+	int displayId = (argc > 2)? atoi(argv[2]) : 1;
     frame_buffer_width = (argc > 3)? atoi(argv[3]) : 800;
     frame_buffer_height = (argc > 4)? atoi(argv[4]) : 600;
 
