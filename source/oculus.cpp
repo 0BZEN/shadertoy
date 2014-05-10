@@ -14,11 +14,6 @@ void OculusDevice::stop()
 	m_eye_patch[OVR::Util::Render::StereoEye_Right].cleanup();
 	m_eye_patch[OVR::Util::Render::StereoEye_Left].cleanup();
 	m_shader_program = 0;
-
-	m_shader_program = load_shader_program();
-	m_eye_patch[OVR::Util::Render::StereoEye_Center].setup(OVR::Util::Render::StereoEye_Center);
-	m_eye_patch[OVR::Util::Render::StereoEye_Right].setup(OVR::Util::Render::StereoEye_Right);
-	m_eye_patch[OVR::Util::Render::StereoEye_Left].setup(OVR::Util::Render::StereoEye_Left);
 	
 	OVR::MessageHandler::RemoveHandlerFromDevices();
 	m_sensor.Clear();

@@ -6,7 +6,7 @@ uniform vec2 Scale;
 uniform vec2 ScaleIn;
 uniform vec4 HmdWarpParam;
 uniform sampler2D texture0;
-varying vec2 oTexCoord;
+in  vec2 oTexCoord;
 out vec4 outcolor;
 
 vec2 HmdWarp(vec2 in01)

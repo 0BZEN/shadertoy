@@ -7,7 +7,7 @@ uniform vec2 ScaleIn;
 uniform vec4 HmdWarpParam;
 uniform vec4 ChromAbParam;
 uniform sampler2D Texture0;
-varying vec2 texCoordV;
+in  vec2 texCoordV;
 out vec4 outcolor;
 
     // Scales input texture coordinates for distortion.
