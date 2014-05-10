@@ -5,6 +5,7 @@
 #pragma comment(lib, "glew32.lib")
 #pragma comment (lib, "sdl2.lib")
 #pragma comment (lib, "sdl2main.lib")
+#pragma comment (lib, "sdl2_image.lib")
 #pragma comment(lib, "libovr.lib")
 
 

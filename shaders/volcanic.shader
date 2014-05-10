@@ -177,7 +177,7 @@ vec3 path( float time )
 void main( void )
 {
 	#ifdef STEREO
-	float eyeID = mod(gl_FragCoord.x + mod(gl_FragCoord.y,2.0),2.0);
+	float eyeID = mod(gl_FragCoord.x - iOffset.x) + mod(gl_FragCoord.y - iOffset.y,2.0),2.0);
     #endif
 
     vec2 q = (gl_FragCoord.xy - iOffset.xy) / iResolution.xy;

@@ -9,7 +9,6 @@
 
 vec2 Rand( vec2 pos )
 {
-	return vec2(0.0f, 0.0f);
 	return texture2D( iChannel0, (pos+.5)/256.0, -100.0 ).xz;
 }
 

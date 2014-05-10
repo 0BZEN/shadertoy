@@ -179,6 +179,14 @@
 			>
 		</File>
 		<File
+			RelativePath=".\source\texture.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\source\texture.h"
+			>
+		</File>
+		<File
 			RelativePath=".\source\utils.cpp"
 			>
 		</File>

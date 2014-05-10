@@ -1,9 +1,13 @@
 
 #include "utils.h"
 #include "oculus.h"
+#include "texture.h"
 
 // oculus device
 OculusDevice oculus;
+
+// textures 
+Textures textures;
 
 // display.
 DEVMODE dmScreenSettings;
@@ -45,21 +49,16 @@ struct ShaderInputs
 		iChannelResolution[2]	= Vector3f(100.0f, 100.0f, 100.0f);
 		iChannelResolution[3]	= Vector3f(100.0f, 100.0f, 100.0f);
 		iMouse					= Vector4f(0.0f, 0.0f, 0.0f, 0.0f);
-		iChannel0				= 0;
-		iChannel1				= 0;
-		iChannel2				= 0;
-		iChannel3				= 0;
 		iDate					= Vector4f(0.0f, 0.0f, 0.0f, 0.0f);
 	}
 
 	void apply_inputs(int program)
 	{
-		// In your code load your shaders, link your program and call:
 		gl_uniform_1f(program, "iGlobalTime",	iGlobalTime);
-		gl_uniform_1i(program, "iChannel0",		iChannel0);
-		gl_uniform_1i(program, "iChannel1",		iChannel1);
-		gl_uniform_1i(program, "iChannel2",		iChannel2);
-		gl_uniform_1i(program, "iChannel3",		iChannel3);
+		gl_uniform_1i(program, "iChannel0",		0);
+		gl_uniform_1i(program, "iChannel1",		1);
+		gl_uniform_1i(program, "iChannel2",		2);
+		gl_uniform_1i(program, "iChannel3",		3);
 		
 		gl_uniform_3fv(program, "iOffset",				1,	&iOffset.x);
 		gl_uniform_3fv(program, "iResolution",			1,	&iResolution.x);
@@ -75,10 +74,6 @@ struct ShaderInputs
 	float		iChannelTime[4];			// channel playback time (in seconds)
 	Vector3f	iChannelResolution[4];		// channel resolution (in pixels)
 	Vector4f	iMouse;						// mouse pixel coords. xy: current (if MLB down), zw: click
-	int			iChannel0;					// input channel. XX = 2D/Cube
-	int			iChannel1;					// input channel. XX = 2D/Cube
-	int			iChannel2;					// input channel. XX = 2D/Cube
-	int			iChannel3;					// input channel. XX = 2D/Cube		
 	Vector4f	iDate;						// (year, month, day, time in seconds)
 };
 
@@ -237,12 +232,41 @@ void update_shader_inputs(void)
 {
 	int x, y;
 	unsigned int buttons = SDL_GetMouseState(&x, &y);
-	//fragment_shader_inputs.iMouse.x		= (float)x;
-	//fragment_shader_inputs.iMouse.y		= (float)y;
-	//fragment_shader_inputs.iMouse.z		= (buttons &SDL_BUTTON(1))? 1.0f : 0.0f;
+	fragment_shader_inputs.iMouse.x		= (float)x;
+	fragment_shader_inputs.iMouse.y		= (float)y;
+	fragment_shader_inputs.iMouse.z		= (buttons &SDL_BUTTON(1))? 1.0f : 0.0f;
 	fragment_shader_inputs.iGlobalTime	= (float)frame_time / 1000.0f;
 	fragment_shader_inputs.iOffset		= ShaderInputs::Vector3f(0.0f, 0.0f, 0.0f);
 	fragment_shader_inputs.iResolution	= ShaderInputs::Vector3f((float)frame_buffer_width, (float)frame_buffer_height, 0.0f);
+}
+
+void update_shader_textures(void)
+{
+	textures.set_channel_texture(0, "noise4.jpg");
+	textures.set_channel_texture(1, "texture7.jpg");
+	textures.set_channel_texture(2, "texture10.jpg");
+	textures.set_channel_texture(3, "empty");
+}
+
+// dump texture to the screen, to double check.
+void debug_texture(const char* name)
+{
+	GLuint noise_texture = textures.find_texture(name);
+	
+	// Render to the screen
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glUseProgram(0);
+	
+	glEnable(GL_TEXTURE_2D);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, noise_texture);
+
+	glBegin(GL_QUADS);
+	glTexCoord2f(0.0f, 1.0f); glVertex2i(-1,  1);
+	glTexCoord2f(1.0f, 1.0f); glVertex2i( 1,  1);
+	glTexCoord2f(1.0f, 0.0f); glVertex2i( 1, -1);
+	glTexCoord2f(0.0f, 0.0f); glVertex2i(-1, -1);
+	glEnd();
 }
 
 void scene_to_buffer(void)
@@ -304,6 +328,11 @@ void buffer_to_display(void)
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, frame_buffer_texture);
 
+		// need to disable the other channels.
+		glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, 0);
+		glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D, 0);
+		glActiveTexture(GL_TEXTURE3); glBindTexture(GL_TEXTURE_2D, 0);
+
 		oculus.render(OVR::Util::Render::StereoEye_Left);
 		oculus.render(OVR::Util::Render::StereoEye_Right);
 	}
@@ -316,6 +345,11 @@ void buffer_to_display(void)
 		glEnable(GL_TEXTURE_2D);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, frame_buffer_texture);
+
+		// need to disable the other channels.
+		glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, 0);
+		glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D, 0);
+		glActiveTexture(GL_TEXTURE3); glBindTexture(GL_TEXTURE_2D, 0);
 
 		glBegin(GL_QUADS);
 		glTexCoord2f(0.0f, 1.0f); glVertex2i(-1,  1);
@@ -394,12 +428,15 @@ void sdl_main_loop()
 
 		update_sdl_events();
 
+	
 		update_shader_inputs();
+	
+		update_shader_textures();
 
-        scene_to_buffer();
+		scene_to_buffer();
 
-        buffer_to_display();
-
+		buffer_to_display();
+	
 		if (sdl_snapshot) 
 		{
 			time_t now = time(0);
@@ -416,7 +453,7 @@ void sdl_main_loop()
 			fragment_shader_program = load_fragment_shader_program(fragment_shader_filename);
 			sdl_recompile = false;
 		}
-
+		
         sdl_frame_count++;
 
 		SDL_GL_SwapWindow(sdl_window);
@@ -430,8 +467,6 @@ void sdl_main_loop()
 			TRACE("------------------------------------------------------");
 		}
 	}
-	oculus.stop();
-	glDeleteProgram(fragment_shader_program);
 }
 
 int SDL_main(int argc, char * argv[])
@@ -466,6 +501,8 @@ int SDL_main(int argc, char * argv[])
 		
 	init_opengl();
 
+	textures.load_textures("./textures");
+
 	oculus.load_shaders();
 
 	create_buffer();
@@ -473,6 +510,12 @@ int SDL_main(int argc, char * argv[])
 	fragment_shader_program = load_fragment_shader_program(fragment_shader_filename);
 
 	sdl_main_loop();
+
+	textures.unload_textures();
+	
+	oculus.stop();
+	
+	glDeleteProgram(fragment_shader_program);
 
 	return 0;
 };
