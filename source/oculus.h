@@ -11,6 +11,7 @@ public:
 	
 	void start();
 	void stop();
+	void load_shaders();
 	void render(OVR::Util::Render::StereoEye eye);
 	
 	bool get_sensor_position(float& x, float& y, float& z) const;

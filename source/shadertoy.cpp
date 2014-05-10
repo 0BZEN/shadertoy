@@ -289,7 +289,6 @@ void setup_display(int display_id)
 
 				if(display_id == DispCount)
 				{
-					TRACE("using Display #%02d [%s]", DispNum, DisplayDevice.DeviceName);
 					dmScreenSettings = defaultMode;
 					display_found = true;
 				}
@@ -306,6 +305,10 @@ void setup_display(int display_id)
 		dmScreenSettings.dmPelsWidth = 1024;
 		dmScreenSettings.dmPelsHeight = 768;
 		TRACE("display #%02d not found. Using default mode (%d x %d)", display_id, dmScreenSettings.dmPelsWidth, dmScreenSettings.dmPelsHeight);
+	}
+	else
+	{
+		TRACE("using Display #%02d [%s]", display_id, dmScreenSettings.dmDeviceName);
 	}
 }
 
@@ -360,30 +363,32 @@ int SDL_main(int argc, char * argv[])
 	asctime_s(date_now, sizeof(date_now), &time_now);
 
     fragment_shader_name = (argc > 1)? argv[1] : "cartoon";
-	int displayId = (argc > 2)? atoi(argv[2]) : 1;
+	int displayId = (argc > 2)? atoi(argv[2]) : 3;
     frame_buffer_width = (argc > 3)? atoi(argv[3]) : 800;
     frame_buffer_height = (argc > 4)? atoi(argv[4]) : 600;
 
 	char fragment_shader_filename[128];
 	sprintf_s(fragment_shader_filename, sizeof(fragment_shader_filename), "./shaders/%s.shader", fragment_shader_name);
 	
-	setup_display(displayId);
-    
-    TRACE("------------------------------------------------------");
+	TRACE("------------------------------------------------------");
     TRACE("- SHADERTOY");
+	TRACE("---------------------");
+	setup_display(displayId);
 	TRACE("---------------------");
     TRACE("- display resolution : %d x %d", dmScreenSettings.dmPelsWidth, dmScreenSettings.dmPelsHeight);
     TRACE("- frame buffer       : %d x %d", frame_buffer_width, frame_buffer_height);
     TRACE("- shader             : %s", fragment_shader_filename);
     TRACE("- date               : %s", date_now);
-	
-	init_sdl(dmScreenSettings);
-
-	init_opengl();
 
 	oculus.start();
+    
+	init_sdl(dmScreenSettings);
+		
+	init_opengl();
 
-    create_buffer();
+	oculus.load_shaders();
+
+	create_buffer();
 
 	fragment_shader_program = load_fragment_shader_program(fragment_shader_filename);
 

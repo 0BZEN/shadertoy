@@ -24,13 +24,16 @@ void OculusDevice::stop()
 	OVR_DEBUG_STATEMENT(_CrtDumpMemoryLeaks());
 }
 
-void OculusDevice::start()
+void OculusDevice::load_shaders()
 {
 	m_shader_program = load_shader_program();
 	m_eye_patch[OVR::Util::Render::StereoEye_Center].setup(OVR::Util::Render::StereoEye_Center);
 	m_eye_patch[OVR::Util::Render::StereoEye_Right].setup(OVR::Util::Render::StereoEye_Right);
 	m_eye_patch[OVR::Util::Render::StereoEye_Left].setup(OVR::Util::Render::StereoEye_Left);
-	
+}
+
+void OculusDevice::start()
+{
 	OVR::System::Init(OVR::Log::ConfigureDefaultLog(OVR::LogMask_All));
 	
 	m_device_manager = *OVR::DeviceManager::Create();
