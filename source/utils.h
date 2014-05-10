@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <limits>
 #include <string>
+#include <list>
 #include <vector>
 #include <iostream>
 #include <fstream>
@@ -27,4 +28,9 @@ extern void gl_uniform_3f(int p, const char* varname, float a, float b, float c)
 extern void gl_uniform_4f(int p, const char* varname, float a, float b, float c, float d);
 extern void gl_uniform_1i(int p, const char* varname, int value);
 
+extern GLint load_shader(const char* file_path, GLint shader_type);
+extern GLint build_program(const std::list<GLint>& shaders);
+extern void delete_shaders(const std::list<GLint>& shaders);
 
+
+void screen_capture_to_clipboard(HWND hWND);

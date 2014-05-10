@@ -105,110 +105,12 @@ void OculusDevice::start()
 
 int OculusDevice::load_shader_program()
 {
-	static const char* gl_vertex_shader_code = 
-		"#version 330 core\n"
-		"\n"
-		"layout(location = 0) in vec3 Position;\n"
-		"layout(location = 1) in vec2 TexCoord;\n"
-		"out vec2 oTexCoord;\n"
-		"\n"
-		"void main()\n"
-		"{\n"
-		"   gl_Position = vec4(Position, 1);\n"
-		"   oTexCoord = TexCoord;\n"
-		"};\n";
-
-	static const char* gl_fragment_shader_code = 
-		"#version 330\n"
-		"\n"
-		"uniform vec2 LensCenter;\n"
-		"uniform vec2 ScreenCenter;\n"
-		"uniform vec2 Scale;\n"
-		"uniform vec2 ScaleIn;\n"
-		"uniform vec4 HmdWarpParam;\n"
-		"uniform sampler2D texture0;\n"
-		"varying vec2 oTexCoord;\n"
-		"out vec4 outcolor;\n"
-		"\n"
-		"vec2 HmdWarp(vec2 in01)\n"
-		"{\n"
-		"   vec2  theta = (in01 - LensCenter) * ScaleIn; // Scales to [-1, 1]\n"
-		"   float rSq = theta.x * theta.x + theta.y * theta.y;\n"
-		"   vec2  theta1 = theta * (HmdWarpParam.x + HmdWarpParam.y * rSq + \n"
-		"                           HmdWarpParam.z * rSq * rSq + HmdWarpParam.w * rSq * rSq * rSq);\n"
-		"   return LensCenter + Scale * theta1;\n"
-		"}\n"
-		"void main()\n"
-		"{\n"
-		"   vec2 tc = HmdWarp(oTexCoord);\n"
-		"   if (!all(equal(clamp(tc, ScreenCenter-vec2(0.25,0.5), ScreenCenter+vec2(0.25,0.5)), tc)))\n"
-		"       outcolor = vec4(0);\n"
-		"   else\n"
-		"	   outcolor = texture2D(texture0, tc);\n"
-		"};\n";
-
-	// Now create the shaders
-	GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
-	GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
-
-	GLint Result = GL_FALSE;
-	int InfoLogLength;
-	
-    // Compile Vertex Shader
-    trace("[OCULUS] ""compiling vertex shader...");
-    glShaderSource(VertexShaderID, 1, &gl_vertex_shader_code , NULL);
-    glCompileShader(VertexShaderID);
-
-    // Check Vertex Shader
-    glGetShaderiv(VertexShaderID, GL_COMPILE_STATUS, &Result);
-    glGetShaderiv(VertexShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    if ( InfoLogLength > 1 )
-	{
-            std::vector<char> VertexShaderErrorMessage(InfoLogLength+1);
-            glGetShaderInfoLog(VertexShaderID, InfoLogLength, NULL, &VertexShaderErrorMessage[0]);
-            FATAL("%s", &VertexShaderErrorMessage[0]);
-    }
-
-	// Compile Fragment Shader
-    trace("[OCULUS] ""compiling fragment shader...");
-    glShaderSource(FragmentShaderID, 1, &gl_fragment_shader_code , NULL);
-    glCompileShader(FragmentShaderID);
-
-    // Check Fragment Shader
-    glGetShaderiv(FragmentShaderID, GL_COMPILE_STATUS, &Result);
-    glGetShaderiv(FragmentShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    if ( InfoLogLength > 1 )
-	{
-            std::vector<char> FragmentShaderErrorMessage(InfoLogLength+1);
-            glGetShaderInfoLog(FragmentShaderID, InfoLogLength, NULL, &FragmentShaderErrorMessage[0]);
-            FATAL("%s", &FragmentShaderErrorMessage[0]);
-    }
-
-    // Link the program
-    trace("[OCULUS] ""linking program...");
-    int program = glCreateProgram();
-    glAttachShader(program, VertexShaderID);
-    glAttachShader(program, FragmentShaderID);
-    glLinkProgram(program);
-
-    // Check the program
-    glGetProgramiv(program, GL_LINK_STATUS, &Result);
-    glGetProgramiv(program, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    if ( InfoLogLength > 1 )
-	{
-        std::vector<char> ProgramErrorMessage(InfoLogLength+1);
-        glGetProgramInfoLog(program, InfoLogLength, NULL, &ProgramErrorMessage[0]);
-        FATAL("%s", &ProgramErrorMessage[0]);
-    }
-	else
-	{
-		trace("[OCULUS] ""program compiled.");    
-	}
-
-    glDeleteShader(VertexShaderID);
-    glDeleteShader(FragmentShaderID);
-
-	return program;
+	std::list<GLint> shaders;
+	shaders.push_back(load_shader("./oculus/oculus_fragment_distort.shader", GL_FRAGMENT_SHADER));
+	shaders.push_back(load_shader("./oculus/oculus_vertex.shader", GL_VERTEX_SHADER));
+	GLint program_id = build_program(shaders);
+	delete_shaders(shaders);
+	return program_id;
 }
 
 bool OculusDevice::get_sensor_position(float& x, float& y, float& z) const

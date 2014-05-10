@@ -1,3 +1,4 @@
+#version 330
 
 uniform vec2 LensCenter;
 uniform vec2 ScreenCenter;
@@ -9,9 +10,9 @@ uniform sampler2D Texture0;
 varying vec2 texCoordV;
 out vec4 outcolor;
 
-// Scales input texture coordinates for distortion.
-// ScaleIn maps texture coordinates to Scales to ([-1, 1]), although top/bottom will be
-// larger due to aspect ratio.
+    // Scales input texture coordinates for distortion.
+    // ScaleIn maps texture coordinates to Scales to ([-1, 1]), although top/bottom will be
+    // larger due to aspect ratio.
 void main()
 {
    vec2  theta = (texCoordV - LensCenter) * ScaleIn; // Scales to [-1, 1]
@@ -40,4 +41,4 @@ void main()
    float red = texture2D(Texture0, tcRed).r;
    
    outcolor = vec4(red, center.g, blue, 1);
-}
+};

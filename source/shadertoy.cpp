@@ -8,15 +8,17 @@ OculusDevice oculus;
 // display.
 DEVMODE dmScreenSettings;
 
-// buffer size.
-GLboolean frame_buffer_enabled = true;
-GLint  frame_buffer_width;
-GLint  frame_buffer_height;
-GLuint frame_buffer = 0;            // hidden frame buffer.
-GLuint frame_buffer_texture = 0;    // we'll be using the frame buffer as a texture for a full screen quad.
-GLuint fragment_shader_program = 0;
-GLint  frame_time;
-GLint  frame_count;
+// render buffer.
+GLboolean	frame_buffer_enabled = true;
+GLint		frame_buffer_width;
+GLint		frame_buffer_height;
+GLuint		frame_buffer = 0;
+GLuint		frame_buffer_texture = 0;
+GLint		frame_time;
+GLint		frame_count;
+
+// fragment shader.
+GLuint		fragment_shader_program = 0;
 
 void init_opengl()
 {
@@ -78,73 +80,13 @@ void create_buffer()
 	}
 }
 
-GLint load_fragment_shader(const char* fragment_file_path)
+GLint load_fragment_shader_program(const char* fragment_file_path)
 {
-	TRACE("loading shader '%s'...", fragment_file_path);
-
-    // Create the shaders
-    GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
-    
-    // Read the Fragment Shader code from the file
-    std::string FragmentShaderCode;
-    std::ifstream FragmentShaderStream(fragment_file_path, std::ios::in);
-    if(FragmentShaderStream.is_open())
-    {
-        std::string Line = "";
-        while(getline(FragmentShaderStream, Line))
-            FragmentShaderCode += "\n" + Line;
-        FragmentShaderStream.close();
-    }
-    else
-    {
-        FATAL("could not to open %s.", fragment_file_path);
-        return 0;
-    }
-
-    GLint Result = GL_FALSE;
-    int InfoLogLength;
-
-    // Compile Fragment Shader
-    TRACE("compiling shader...");
-    char const * FragmentSourcePointer = FragmentShaderCode.c_str();
-    glShaderSource(FragmentShaderID, 1, &FragmentSourcePointer , NULL);
-    glCompileShader(FragmentShaderID);
-
-    // Check Fragment Shader
-    glGetShaderiv(FragmentShaderID, GL_COMPILE_STATUS, &Result);
-    glGetShaderiv(FragmentShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    if ( InfoLogLength > 1 )
-    {
-        char* Info = new char[InfoLogLength + 1];
-        glGetShaderInfoLog(FragmentShaderID, InfoLogLength, NULL, Info);
-        WARN("%s", Info);
-        delete[] Info;
-    }
-
-    // Link the program
-    TRACE("linking program...");
-    GLuint ProgramID = glCreateProgram();
-    glAttachShader(ProgramID, FragmentShaderID);
-    glLinkProgram(ProgramID);
-
-    // Check the program
-    glGetProgramiv(ProgramID, GL_LINK_STATUS, &Result);
-    glGetProgramiv(ProgramID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    if ( InfoLogLength > 1 )
-    {
-        char* Info = new char[InfoLogLength + 1];
-        glGetProgramInfoLog(ProgramID, InfoLogLength, NULL, Info);
-		WARN("program error : %s", Info);
-        delete[] Info;
-    }
-	else
-	{
-		TRACE("shader '%s' loaded.", fragment_file_path);
-	}
-
-	glDeleteShader(FragmentShaderID);
-
-    return ProgramID;
+	std::list<GLint> shaders;
+	shaders.push_back(load_shader(fragment_file_path, GL_FRAGMENT_SHADER));
+	GLint program_id = build_program(shaders);
+	delete_shaders(shaders);
+	return program_id;
 }
 
 void update_uniform_params_buffer(OVR::Util::Render::StereoEye eye)
@@ -321,46 +263,15 @@ HWND create_window()
 }
 
  
-void captureToClipboard(HWND hWND)
-{
-	if ( OpenClipboard(hWND) )
-	{
-		EmptyClipboard();
-
-		HDC hDC = GetDC(hWND);
-
-		// and a device context to put it in
-		HDC hMemoryDC = CreateCompatibleDC(hDC);
-
-		int width = GetDeviceCaps(hDC, HORZRES);
-		int height = GetDeviceCaps(hDC, VERTRES);
-
-		// maybe worth checking these are positive values
-		HBITMAP hBitmap = CreateCompatibleBitmap(hDC, width, height);
-
-		// get a new bitmap
-		HBITMAP hOldBitmap = (HBITMAP)SelectObject(hMemoryDC, hBitmap);
-
-		BOOL result = BitBlt(hMemoryDC, 0, 0, width, height, hDC, 0, 0, SRCCOPY);
-
-		hBitmap = (HBITMAP)SelectObject(hMemoryDC, hOldBitmap);
-
-		HANDLE handle = SetClipboardData(CF_BITMAP, hBitmap);
-	
-		result = CloseClipboard();
-
-		// clean up
-		DeleteDC(hMemoryDC);
-	}
-}
-
 void main(int argc, char* argv[])
 {
     time_t now = time(0);
     tm time_now;
     localtime_s(&time_now, &now);
+	char date_now[128];
+	asctime_s(date_now, sizeof(date_now), &time_now);
 
-    const char* shader_file = (argc > 1)? argv[1] : "molecule";
+    const char* shader_file = (argc > 1)? argv[1] : "elevated";
 	int displayId = (argc > 2)? atoi(argv[2]) : 1;
     frame_buffer_width = (argc > 3)? atoi(argv[3]) : 800;
     frame_buffer_height = (argc > 4)? atoi(argv[4]) : 600;
@@ -376,7 +287,7 @@ void main(int argc, char* argv[])
     TRACE("- display resolution : %d x %d", dmScreenSettings.dmPelsWidth, dmScreenSettings.dmPelsHeight);
     TRACE("- frame buffer       : %d x %d", frame_buffer_width, frame_buffer_height);
     TRACE("- shader             : %s", fragment_shader_filename);
-    TRACE("- date               : %s", asctime(&time_now));
+    TRACE("- date               : %s", date_now);
 	
 	HWND hWND = create_window();
 	HDC hDC = GetDC(hWND);    
@@ -387,7 +298,7 @@ void main(int argc, char* argv[])
 
     create_buffer();
 
-	fragment_shader_program = load_fragment_shader(fragment_shader_filename);
+	fragment_shader_program = load_fragment_shader_program(fragment_shader_filename);
 
     int frame_start = GetTickCount();	
 	frame_count = 0;
@@ -403,7 +314,7 @@ void main(int argc, char* argv[])
 
 		if (GetAsyncKeyState(VK_SNAPSHOT)) 
 		{
-			captureToClipboard(hWND);
+			screen_capture_to_clipboard(hWND);
 		}
 
         if (GetAsyncKeyState(VK_ESCAPE)) 
