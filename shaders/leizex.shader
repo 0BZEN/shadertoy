@@ -1,28 +1,5 @@
 #extension GL_EXT_gpu_shader4: enable
 
-struct HMD
-{
-	int  present;	// hmd is present.
-	vec3 canvas;	// virtual hmd screen dimensions.
-	vec3 pos;		// position of hmd.
-	vec3 right;		// direction to the right of the hmd.
-	vec3 up;		// direction above hmd.
-	vec3 forward;	// direction at front of hmd.
-};
-
-uniform vec3      iOffset;				 // viewport offset (in pixels)
-uniform vec3      iResolution;           // viewport resolution (in pixels)
-uniform float     iGlobalTime;           // shader playback time (in seconds)
-uniform float     iChannelTime[4];       // channel playback time (in seconds)
-uniform vec3      iChannelResolution[4]; // channel resolution (in pixels)
-uniform vec4      iMouse;                // mouse pixel coords. xy: current (if MLB down), zw: click
-uniform sampler2D iChannel0;	         // input channel. XX = 2D/Cube
-uniform sampler2D iChannel1;	         // input channel. XX = 2D/Cube
-uniform sampler2D iChannel2;	         // input channel. XX = 2D/Cube
-uniform sampler2D iChannel3;	         // input channel. XX = 2D/Cube
-uniform vec4      iDate;                 // (year, month, day, time in seconds)
-uniform HMD		  iHMD;					 // HMD settings.
-
 float coolfFunc3d2( int n )
 {
     n = (n << 13) ^ n;
@@ -119,23 +96,6 @@ vec3 calcNormal( in vec3 pos )
                      map( pos+vec3(0.0,eps,0.0), kk ) - map( pos-vec3(0.0,eps,0.0), kk ),
                      map( pos+vec3(0.0,0.0,eps), kk ) - map( pos-vec3(0.0,0.0,eps), kk ) );
     return normalize( nor );
-}
-
-void generateRay2( out vec3 rayDir, out vec3 rayPos, in vec2 p, float ftime )
-{
-	vec2 s = p;
-	rayDir = normalize(iHMD.right * (s.x * iHMD.canvas.x) + iHMD.up * (s.y * iHMD.canvas.y) + iHMD.forward * iHMD.canvas.z);
-	rayPos = iHMD.pos;
-}
-
-void generateRay3( out vec3 rayDir, out vec3 rayPos, in vec2 p, float ftime )
-{
-    vec2 s = p;
-    float r2 = s.x*s.x*0.31640625 + s.y*s.y; // (9 / 16)^2
-    vec2 d = s*(7.0-sqrt(37.5-11.5*r2))/(r2+1.0);
-
-	rayPos = iHMD.pos;
-	rayDir = normalize( d.x * iHMD.right + d.y * iHMD.up + iHMD.forward );
 }
 
 void generateRay( out vec3 rayDir, out vec3 rayPos, in vec2 p, float ftime )

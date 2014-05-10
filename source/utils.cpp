@@ -36,6 +36,9 @@ void gl_uniform_2f(int p, const char* varname, float a, float b)					{ GLuint va
 void gl_uniform_3f(int p, const char* varname, float a, float b, float c)			{ GLuint varid = glGetUniformLocation(p, varname); glUniform3f(varid, a, b, c); }
 void gl_uniform_4f(int p, const char* varname, float a, float b, float c, float d)	{ GLuint varid = glGetUniformLocation(p, varname); glUniform4f(varid, a, b, c, d); }
 void gl_uniform_1i(int p, const char* varname, int value)							{ GLuint varid = glGetUniformLocation(p, varname); glUniform1i(varid, value); }
+void gl_uniform_1fv(int p, const char* varname, int count, const float* values)		{ GLuint varid = glGetUniformLocation(p, varname); glUniform1fv(varid, count, values); }
+void gl_uniform_3fv(int p, const char* varname, int count, const float* values)		{ GLuint varid = glGetUniformLocation(p, varname); glUniform3fv(varid, count, values); }
+void gl_uniform_4fv(int p, const char* varname, int count, const float* values)		{ GLuint varid = glGetUniformLocation(p, varname); glUniform4fv(varid, count, values); }
 
 void gl_mult_matrix(const OVR::Matrix4f& matrix)
 { 
@@ -68,18 +71,35 @@ void attach_opengl_debug_callbacks()
 	if(glDebugMessageCallback)	glDebugMessageCallback(gl_debug_callback, NULL);
 }
 
-GLint load_shader(const char* file_path, GLint shader_type)
+GLint load_shader(const char* file_path, GLint shader_type, const char* inputs_file_path)
 {
-	TRACE("loading shader '%s'...", file_path);
-
-    // Create the shaders
+	// Create the shaders
 	GLuint shader_id = glCreateShader(shader_type);
     
     // Read the Fragment Shader code from the file
     std::string shader_code;
-    std::ifstream shader_stream(file_path, std::ios::in);
-    if(shader_stream.is_open())
+    
+	// load inputs file.
+	if(inputs_file_path)
+	{
+		TRACE("loading shader inputs '%s'...", inputs_file_path);
+    
+		std::ifstream shader_stream(inputs_file_path, std::ios::in);
+		if(shader_stream.is_open())
+		{
+			std::string Line = "";
+			while(getline(shader_stream, Line))
+				shader_code += "\n" + Line;
+			shader_stream.close();
+		}	    
+	}
+
+    // load shader file.
+	std::ifstream shader_stream(file_path, std::ios::in);
+	if(shader_stream.is_open())
     {
+		TRACE("loading shader '%s'...", file_path);
+    
         std::string Line = "";
         while(getline(shader_stream, Line))
             shader_code += "\n" + Line;

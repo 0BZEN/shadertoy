@@ -28,10 +28,13 @@ extern void gl_uniform_2f(int p, const char* varname, float a, float b);
 extern void gl_uniform_3f(int p, const char* varname, float a, float b, float c);
 extern void gl_uniform_4f(int p, const char* varname, float a, float b, float c, float d);
 extern void gl_uniform_1i(int p, const char* varname, int value);
+extern void gl_uniform_1fv(int p, const char* varname, int count, const float* values);
+extern void gl_uniform_3fv(int p, const char* varname, int count, const float* values);
+extern void gl_uniform_4fv(int p, const char* varname, int count, const float* values);
 
 extern void gl_mult_matrix(const OVR::Matrix4f& matrix);
 
-extern GLint load_shader(const char* file_path, GLint shader_type);
+extern GLint load_shader(const char* file_path, GLint shader_type, const char* shader_inputs=NULL);
 extern GLint build_program(const std::list<GLint>& shaders);
 extern void delete_shaders(const std::list<GLint>& shaders);
 

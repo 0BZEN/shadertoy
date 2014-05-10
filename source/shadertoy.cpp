@@ -8,6 +8,80 @@ OculusDevice oculus;
 // display.
 DEVMODE dmScreenSettings;
 
+struct ShaderInputs
+{
+	struct Vector2f
+	{
+		float x, y;
+		Vector2f(float ix, float iy) { x = ix; y = iy; }
+		Vector2f() { x = y = 0; }
+	};
+
+	struct Vector3f
+	{
+		float x, y, z;
+		Vector3f(float ix, float iy, float iz) { x = ix; y = iy; z = iz; }
+		Vector3f() { x = y = z = 0; }
+	};
+
+	struct Vector4f
+	{
+		float x, y, z, w;
+		Vector4f(float ix, float iy, float iz, float iw) { x = ix; y = iy; z = iz; w = iw; }
+		Vector4f() { x = y = z = w = 0; }
+	};
+
+	ShaderInputs()
+	{
+		iOffset					= Vector3f(0.0f, 0.0f, 0.0f);
+		iResolution				= Vector3f(100.0f, 100.0f, 100.0f);
+		iGlobalTime				= 0.0f;
+		iChannelTime[0]			= 0.0f;
+		iChannelTime[1]			= 0.0f;
+		iChannelTime[2]			= 0.0f;
+		iChannelTime[3]			= 0.0f;
+		iChannelResolution[0]	= Vector3f(100.0f, 100.0f, 100.0f);
+		iChannelResolution[1]	= Vector3f(100.0f, 100.0f, 100.0f);
+		iChannelResolution[2]	= Vector3f(100.0f, 100.0f, 100.0f);
+		iChannelResolution[3]	= Vector3f(100.0f, 100.0f, 100.0f);
+		iMouse					= Vector4f(0.0f, 0.0f, 0.0f, 0.0f);
+		iChannel0				= 0;
+		iChannel1				= 0;
+		iChannel2				= 0;
+		iChannel3				= 0;
+		iDate					= Vector4f(0.0f, 0.0f, 0.0f, 0.0f);
+	}
+
+	void apply_inputs(int program)
+	{
+		// In your code load your shaders, link your program and call:
+		gl_uniform_1f(program, "iGlobalTime",	iGlobalTime);
+		gl_uniform_1i(program, "iChannel0",		iChannel0);
+		gl_uniform_1i(program, "iChannel1",		iChannel1);
+		gl_uniform_1i(program, "iChannel2",		iChannel2);
+		gl_uniform_1i(program, "iChannel3",		iChannel3);
+		
+		gl_uniform_3fv(program, "iOffset",				1,	&iOffset.x);
+		gl_uniform_3fv(program, "iResolution",			1,	&iResolution.x);
+		gl_uniform_1fv(program, "iChannelTime",			4,	iChannelTime);
+		gl_uniform_3fv(program, "iChannelResolution",	4,	&iChannelResolution[0].x);
+		gl_uniform_4fv(program, "iMouse",				1,	&iMouse.x);
+		gl_uniform_4fv(program, "iDate",				1,	&iDate.x);
+	}
+
+	Vector3f	iOffset;					// viewport offset (in pixels)
+	Vector3f	iResolution;				// viewport resolution (in pixels)
+	float		iGlobalTime;				// shader playback time (in seconds)
+	float		iChannelTime[4];			// channel playback time (in seconds)
+	Vector3f	iChannelResolution[4];		// channel resolution (in pixels)
+	Vector4f	iMouse;						// mouse pixel coords. xy: current (if MLB down), zw: click
+	int			iChannel0;					// input channel. XX = 2D/Cube
+	int			iChannel1;					// input channel. XX = 2D/Cube
+	int			iChannel2;					// input channel. XX = 2D/Cube
+	int			iChannel3;					// input channel. XX = 2D/Cube		
+	Vector4f	iDate;						// (year, month, day, time in seconds)
+};
+
 // render buffer.
 GLboolean	frame_buffer_enabled = true;
 GLint		frame_buffer_width;
@@ -17,14 +91,16 @@ GLuint		frame_buffer_texture = 0;
 GLint		frame_time;
 GLint		frame_count;
 
-// fragment shader.
-GLuint		fragment_shader_program = 0;
-const char* fragment_shader_name="";
-
+bool sdl_recompile = false;
 bool sdl_quit = false;
 bool sdl_snapshot = false;
 SDL_Window *sdl_window=NULL;
 SDL_GLContext sdl_opengl_context;
+
+// fragment shader.
+GLuint			fragment_shader_program = 0;
+const char*		fragment_shader_name="";
+ShaderInputs	fragment_shader_inputs;
 
 void update_sdl_events()
 {
@@ -33,6 +109,10 @@ void update_sdl_events()
 	{
 		if( event.type == SDL_KEYDOWN )
 		{
+			if(event.key.keysym.sym == SDLK_F7)
+			{
+				sdl_recompile = true;
+			}
 			if(event.key.keysym.sym == SDLK_ESCAPE)
 			{
 				sdl_quit = true;
@@ -142,40 +222,27 @@ void create_buffer()
 
 GLint load_fragment_shader_program(const char* fragment_file_path)
 {
+	// common inputs for all the shaders.
+	char fragment_inputs_filename[128];
+	sprintf_s(fragment_inputs_filename, sizeof(fragment_inputs_filename), "./shaders/%s.shader", "shader_inputs");
+
 	std::list<GLint> shaders;
-	shaders.push_back(load_shader(fragment_file_path, GL_FRAGMENT_SHADER));
+	shaders.push_back(load_shader(fragment_file_path, GL_FRAGMENT_SHADER, fragment_inputs_filename));
 	GLint program_id = build_program(shaders);
 	delete_shaders(shaders);
 	return program_id;
 }
 
-void update_uniform_params_buffer(OVR::Util::Render::StereoEye eye)
+void update_shader_inputs(void)
 {
-	if(eye == OVR::Util::Render::StereoEye_Center)
-	{
-		// In your code load your shaders, link your program and call:
-		gl_uniform_3f(fragment_shader_program, "iOffset",	  0.0f, 0.0f, 0.0f);
-		gl_uniform_3f(fragment_shader_program, "iResolution", (float)frame_buffer_width, (float)frame_buffer_height, 0.0f);
-		gl_uniform_1f(fragment_shader_program, "iGlobalTime", (float)frame_time / 1000.0f);
-	}
-	else if(eye == OVR::Util::Render::StereoEye_Left)
-	{
-		// In your code load your shaders, link your program and call:
-		gl_uniform_3f(fragment_shader_program, "iOffset",	  0.0f, 0.0f, 0.0f);
-		gl_uniform_3f(fragment_shader_program, "iResolution", (float)frame_buffer_width / 2, (float)frame_buffer_height, 0.0f);
-		gl_uniform_1f(fragment_shader_program, "iGlobalTime", (float)frame_time / 1000.0f);
-	}
-	else if(eye == OVR::Util::Render::StereoEye_Right)
-	{
-		// In your code load your shaders, link your program and call:
-		gl_uniform_3f(fragment_shader_program, "iOffset",	  (float)frame_buffer_width / 2, 0.0f, 0.0f);
-		gl_uniform_3f(fragment_shader_program, "iResolution", (float)frame_buffer_width / 2, (float)frame_buffer_height, 0.0f);
-		gl_uniform_1f(fragment_shader_program, "iGlobalTime", (float)frame_time / 1000.0f);
-	}
-	else
-	{
-		FATAL("invalid eye(%d)", eye);
-	}
+	int x, y;
+	unsigned int buttons = SDL_GetMouseState(&x, &y);
+	//fragment_shader_inputs.iMouse.x		= (float)x;
+	//fragment_shader_inputs.iMouse.y		= (float)y;
+	//fragment_shader_inputs.iMouse.z		= (buttons &SDL_BUTTON(1))? 1.0f : 0.0f;
+	fragment_shader_inputs.iGlobalTime	= (float)frame_time / 1000.0f;
+	fragment_shader_inputs.iOffset		= ShaderInputs::Vector3f(0.0f, 0.0f, 0.0f);
+	fragment_shader_inputs.iResolution	= ShaderInputs::Vector3f((float)frame_buffer_width, (float)frame_buffer_height, 0.0f);
 }
 
 void scene_to_buffer(void)
@@ -183,17 +250,21 @@ void scene_to_buffer(void)
 	if(frame_buffer_enabled)
 	{
 		glViewport(0, 0, frame_buffer_width, frame_buffer_height);
-
+		
 		if(oculus.has_display())
 		{
 			// render to buffer.
 			glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer);
 			glUseProgram(fragment_shader_program);
 
-			update_uniform_params_buffer(OVR::Util::Render::StereoEye_Left);
+			fragment_shader_inputs.iOffset		= ShaderInputs::Vector3f(0.0f, 0.0f, 0.0f);
+			fragment_shader_inputs.iResolution	= ShaderInputs::Vector3f((float)frame_buffer_width / 2, (float)frame_buffer_height, 0.0f);
+			fragment_shader_inputs.apply_inputs(fragment_shader_program);		
 			glRecti(-1, -1, 0, 1);
 
-			update_uniform_params_buffer(OVR::Util::Render::StereoEye_Right);
+			fragment_shader_inputs.iOffset		= ShaderInputs::Vector3f((float)frame_buffer_width / 2, 0.0f, 0.0f);
+			fragment_shader_inputs.iResolution	= ShaderInputs::Vector3f((float)frame_buffer_width / 2, (float)frame_buffer_height, 0.0f);
+			fragment_shader_inputs.apply_inputs(fragment_shader_program);
 			glRecti(0, -1, 1, 1);
 		}
 		else
@@ -202,17 +273,14 @@ void scene_to_buffer(void)
 			glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer);
 			glUseProgram(fragment_shader_program);
 
-			update_uniform_params_buffer(OVR::Util::Render::StereoEye_Center);
+			fragment_shader_inputs.iOffset		= ShaderInputs::Vector3f(0.0f, 0.0f, 0.0f);
+			fragment_shader_inputs.iResolution	= ShaderInputs::Vector3f((float)frame_buffer_width, (float)frame_buffer_height, 0.0f);
+			fragment_shader_inputs.apply_inputs(fragment_shader_program);
 			glRecti(-1, -1, 1, 1);
 		}
 	}
 }
 
-void update_uniform_params_screen()
-{
-    gl_uniform_3f(fragment_shader_program, "iResolution", (float)dmScreenSettings.dmPelsWidth, (float)dmScreenSettings.dmPelsHeight, 0.0f);
-    gl_uniform_1f(fragment_shader_program, "iGlobalTime", (float)frame_time / 1000.0f);
-}
 
 void buffer_to_display(void)
 {
@@ -220,7 +288,9 @@ void buffer_to_display(void)
     
 	if(!frame_buffer_enabled)
 	{
-		update_uniform_params_screen();
+		fragment_shader_inputs.iOffset		= ShaderInputs::Vector3f(0.0f, 0.0f, 0.0f);
+		fragment_shader_inputs.iResolution	= ShaderInputs::Vector3f((float)frame_buffer_width, (float)frame_buffer_height, 0.0f);
+		fragment_shader_inputs.apply_inputs(fragment_shader_program);
 		glUseProgram(fragment_shader_program);
 		glRecti(-1, -1, 1, 1);
 	}
@@ -324,6 +394,8 @@ void sdl_main_loop()
 
 		update_sdl_events();
 
+		update_shader_inputs();
+
         scene_to_buffer();
 
         buffer_to_display();
@@ -335,6 +407,14 @@ void sdl_main_loop()
 			sprintf_s(filename, sizeof(filename), "./screenshots/%s_%d.tga", fragment_shader_name, now);
 			save_screenshot_tga(filename);
 			sdl_snapshot = false;
+		}
+
+		if(sdl_recompile)
+		{
+			char fragment_shader_filename[128];
+			sprintf_s(fragment_shader_filename, sizeof(fragment_shader_filename), "./shaders/%s.shader", fragment_shader_name);
+			fragment_shader_program = load_fragment_shader_program(fragment_shader_filename);
+			sdl_recompile = false;
 		}
 
         sdl_frame_count++;
@@ -362,7 +442,7 @@ int SDL_main(int argc, char * argv[])
 	char date_now[128];
 	asctime_s(date_now, sizeof(date_now), &time_now);
 
-    fragment_shader_name = (argc > 1)? argv[1] : "cartoon";
+    fragment_shader_name = (argc > 1)? argv[1] : "menger_journey";
 	int displayId = (argc > 2)? atoi(argv[2]) : 1;
     frame_buffer_width = (argc > 3)? atoi(argv[3]) : 800;
     frame_buffer_height = (argc > 4)? atoi(argv[4]) : 600;
