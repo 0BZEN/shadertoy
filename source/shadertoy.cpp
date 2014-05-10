@@ -19,11 +19,71 @@ GLint		frame_count;
 
 // fragment shader.
 GLuint		fragment_shader_program = 0;
+const char* fragment_shader_name="";
+
+bool sdl_quit = false;
+bool sdl_snapshot = false;
+SDL_Window *sdl_window=NULL;
+SDL_GLContext sdl_opengl_context;
+
+void update_sdl_events()
+{
+	SDL_Event event;	
+	while( SDL_PollEvent( &event ) )
+	{
+		if( event.type == SDL_KEYDOWN )
+		{
+			if(event.key.keysym.sym == SDLK_ESCAPE)
+			{
+				sdl_quit = true;
+			}
+			else if(event.key.keysym.sym == SDLK_PRINTSCREEN)
+			{
+				sdl_snapshot = true;
+			}
+			else
+			{
+				//on_sdl_key_down(event.key.keysym.sym);
+			}
+		}
+		else if( event.type == SDL_KEYUP )
+		{
+			//on_sdl_key_up(event.key.keysym.sym);
+		}
+		else if( event.type == SDL_QUIT )
+		{
+			sdl_quit = true;
+		}
+	}
+}
+
+void init_sdl(DEVMODE dmScreenSettings)
+{
+	// initialise out rendering context.
+	if(SDL_Init(SDL_INIT_EVERYTHING) < 0)
+		return;    
+	
+	sdl_window = SDL_CreateWindow("ShaderToyCulus!", 
+		dmScreenSettings.dmPosition.x, 
+		dmScreenSettings.dmPosition.y, 
+		dmScreenSettings.dmPelsWidth, 
+		dmScreenSettings.dmPelsHeight, 
+		SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_BORDERLESS | SDL_WINDOW_MAXIMIZED);
+
+	sdl_opengl_context = SDL_GL_CreateContext(sdl_window);
+
+	// set window bounds into oculus display.
+	SDL_SetWindowPosition(sdl_window, dmScreenSettings.dmPosition.x, dmScreenSettings.dmPosition.y);
+	SDL_SetWindowSize(sdl_window, dmScreenSettings.dmPelsWidth, dmScreenSettings.dmPelsHeight);
+	//SDL_SetWindowFullscreen(sdl_window, SDL_WINDOW_FULLSCREEN);
+}
 
 void init_opengl()
 {
 	glewInit();
 
+	attach_opengl_debug_callbacks();
+	
 	glDisable(GL_BLEND);
     glDisable(GL_LIGHTING);
     glDisable(GL_ALPHA_TEST);
@@ -249,21 +309,49 @@ void setup_display(int display_id)
 	}
 }
 
-HWND create_window()
+// main loop. Do various bits till we want to quit.
+void sdl_main_loop()
 {
-	PIXELFORMATDESCRIPTOR pfd = { 0,1,PFD_SUPPORT_OPENGL|PFD_DOUBLEBUFFER, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0 };
+	unsigned int sdl_frame_timestart = SDL_GetTicks();
+	unsigned int sdl_frame_count = 0;
 
-	//ChangeDisplaySettings(&dmScreenSettings, CDS_FULLSCREEN);
-	HWND hWND = CreateWindow("edit",0, WS_POPUP | WS_VISIBLE | WS_MAXIMIZE, dmScreenSettings.dmPosition.x, dmScreenSettings.dmPosition.y, dmScreenSettings.dmPelsWidth, dmScreenSettings.dmPelsHeight, 0, 0, 0, 0);
-	HDC hDC = GetDC(hWND);
-    SetPixelFormat(hDC, ChoosePixelFormat(hDC, &pfd) , &pfd);
-    wglMakeCurrent(hDC, wglCreateContext(hDC));
-    ShowCursor(0);
-	return hWND;
+	while(!sdl_quit)
+	{
+		frame_time = SDL_GetTicks() - sdl_frame_timestart;
+
+		update_sdl_events();
+
+        scene_to_buffer();
+
+        buffer_to_display();
+
+		if (sdl_snapshot) 
+		{
+			time_t now = time(0);
+			char filename[256];
+			sprintf_s(filename, sizeof(filename), "./screenshots/%s_%d.tga", fragment_shader_name, now);
+			save_screenshot_tga(filename);
+			sdl_snapshot = false;
+		}
+
+        sdl_frame_count++;
+
+		SDL_GL_SwapWindow(sdl_window);
+
+		SDL_Delay(1);
+
+		if (sdl_quit) 
+		{
+			unsigned int sdl_frame_timestop = SDL_GetTicks();
+			TRACE("- average : %.3f fps", sdl_frame_count / (float)((sdl_frame_timestop - sdl_frame_timestart) / 1000.0f));
+			TRACE("------------------------------------------------------");
+		}
+	}
+	oculus.stop();
+	glDeleteProgram(fragment_shader_program);
 }
 
- 
-void main(int argc, char* argv[])
+int SDL_main(int argc, char * argv[])
 {
     time_t now = time(0);
     tm time_now;
@@ -271,13 +359,13 @@ void main(int argc, char* argv[])
 	char date_now[128];
 	asctime_s(date_now, sizeof(date_now), &time_now);
 
-    const char* shader_file = (argc > 1)? argv[1] : "elevated";
+    fragment_shader_name = (argc > 1)? argv[1] : "cartoon";
 	int displayId = (argc > 2)? atoi(argv[2]) : 1;
     frame_buffer_width = (argc > 3)? atoi(argv[3]) : 800;
     frame_buffer_height = (argc > 4)? atoi(argv[4]) : 600;
 
 	char fragment_shader_filename[128];
-	sprintf_s(fragment_shader_filename, sizeof(fragment_shader_filename), "./shaders/%s.shader", shader_file);
+	sprintf_s(fragment_shader_filename, sizeof(fragment_shader_filename), "./shaders/%s.shader", fragment_shader_name);
 	
 	setup_display(displayId);
     
@@ -289,8 +377,7 @@ void main(int argc, char* argv[])
     TRACE("- shader             : %s", fragment_shader_filename);
     TRACE("- date               : %s", date_now);
 	
-	HWND hWND = create_window();
-	HDC hDC = GetDC(hWND);    
+	init_sdl(dmScreenSettings);
 
 	init_opengl();
 
@@ -300,33 +387,7 @@ void main(int argc, char* argv[])
 
 	fragment_shader_program = load_fragment_shader_program(fragment_shader_filename);
 
-    int frame_start = GetTickCount();	
-	frame_count = 0;
+	sdl_main_loop();
 
-    while(true)
-    {
-        frame_time = (GetTickCount() - frame_start);
-		frame_count++;
-
-        scene_to_buffer();
-
-        buffer_to_display();
-
-		if (GetAsyncKeyState(VK_SNAPSHOT)) 
-		{
-			screen_capture_to_clipboard(hWND);
-		}
-
-        if (GetAsyncKeyState(VK_ESCAPE)) 
-		{
-			TRACE("- average : %.3f fps", frame_count / (float)(frame_time / 1000.0f));
-			TRACE("------------------------------------------------------");
-			oculus.stop();
-            ExitProcess(0);
-		}
-
-		SwapBuffers(hDC);
-
-        Sleep(1);
-    }
+	return 0;
 };

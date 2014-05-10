@@ -3,7 +3,10 @@
 #pragma comment(lib, "Winmm.lib")
 #pragma comment(lib, "opengl32.lib")
 #pragma comment(lib, "glew32.lib")
+#pragma comment (lib, "sdl2.lib")
+#pragma comment (lib, "sdl2main.lib")
 #pragma comment(lib, "libovr.lib")
+
 
 void trace(const char* format, ...) 
 {
@@ -34,6 +37,36 @@ void gl_uniform_3f(int p, const char* varname, float a, float b, float c)			{ GL
 void gl_uniform_4f(int p, const char* varname, float a, float b, float c, float d)	{ GLuint varid = glGetUniformLocation(p, varname); glUniform4f(varid, a, b, c, d); }
 void gl_uniform_1i(int p, const char* varname, int value)							{ GLuint varid = glGetUniformLocation(p, varname); glUniform1i(varid, value); }
 
+void gl_mult_matrix(const OVR::Matrix4f& matrix)
+{ 
+	glMultMatrixf(&(matrix.Transposed().M[0][0])); 
+}
+
+
+void APIENTRY gl_debug_callback(	GLenum source,
+									GLenum type,
+			                        GLuint id,
+						            GLenum severity,
+									GLsizei length,
+			                        const GLchar* message,
+						            void* userParam)
+{
+	if(severity == GL_DEBUG_SEVERITY_HIGH)
+	{
+		trace("[OPENGL] ERROR : source(%s) type(%s) id(%d) severity(%s) '%s'", glewGetString(source), glewGetString(type), id, glewGetString(severity), message);
+		debug_break();
+	}
+	else
+	{
+		trace("[OPENGL] WARNING : source(%s) type(%s) id(%d) severity(%s) '%s'", glewGetString(source), glewGetString(type), id, glewGetString(severity), message);
+	}
+}
+
+void attach_opengl_debug_callbacks()
+{
+	if(glDebugMessageControl)	glDebugMessageControl(GL_DEBUG_SOURCE_API, GL_DEBUG_TYPE_ERROR, GL_DEBUG_SEVERITY_HIGH, 0, NULL, true);
+	if(glDebugMessageCallback)	glDebugMessageCallback(gl_debug_callback, NULL);
+}
 
 GLint load_shader(const char* file_path, GLint shader_type)
 {
@@ -69,7 +102,7 @@ GLint load_shader(const char* file_path, GLint shader_type)
     int info_log_length;
 
 	glGetShaderiv(shader_id, GL_COMPILE_STATUS, &result);
-		glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &info_log_length);
+	glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &info_log_length);
     if ( result == GL_FALSE )
     {
         std::vector<char> message(info_log_length+1);
@@ -156,8 +189,34 @@ void screen_capture_to_clipboard(HWND hWND)
 		HANDLE handle = SetClipboardData(CF_BITMAP, hBitmap);
 	
 		result = CloseClipboard();
-
+	
 		// clean up
 		DeleteDC(hMemoryDC);
 	}
+}
+
+bool save_screenshot_tga(const char* filename) 
+{
+	std::ofstream file_stream(filename, std::ios::out | std::ios::binary);
+    if(!file_stream.is_open())
+		return false;
+
+	GLint viewport[4];
+	glGetIntegerv( GL_VIEWPORT, viewport );
+	int x = viewport[0];
+	int y = viewport[1];
+	int w = viewport[2];
+	int h = viewport[3];
+	unsigned char * pixels = new unsigned char[w * h * 3];
+
+	short  TGAhead[] = {0, 2, 0, 0, 0, 0, w, h, 24};
+	glReadBuffer(GL_FRONT);
+	glReadPixels(x, y, w, h, GL_BGR, GL_UNSIGNED_BYTE, pixels);
+
+	file_stream.write((const char*)&TGAhead, sizeof(TGAhead));
+	file_stream.write((const char*)pixels, 3*w*h);
+	file_stream.close();
+
+	delete[] pixels;
+	return true;
 }
