@@ -1,1 +1,1 @@
-shadertoy.exe volcanic
+shadertoy.exe shader=volcanic resx=1024 resy=764 tex0=noise4 tex1=texture7 tex2=texture10

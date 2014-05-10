@@ -1,1 +1,1 @@
-shadertoy.exe infinite_city
+shadertoy.exe shader=infinite_city resx=1024 resy=768 tex0=noise4

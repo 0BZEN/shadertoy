@@ -1,1 +1,1 @@
-shadertoy.exe menger_journey
+shadertoy.exe shader=menger_journey resx=1024 resy=764

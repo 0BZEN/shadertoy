@@ -9,11 +9,11 @@
 
 // update: Nyan Cat cameo, thanks to code from mu6k: https://www.shadertoy.com/view/4dXGWH
 
+
 //#define SHOWONLYEDGES
-//#define NYAN 
+#define NYAN 
 #define WAVES
 #define BORDER
-#define OCULUS
 
 #define RAY_STEPS 150
 
@@ -153,7 +153,7 @@ vec3 raymarch(in vec3 from, in vec3 dir)
 #endif		
 	totdist=clamp(totdist,0.,26.);
 	dir.y-=.02;
-	float sunsize=7.-max(0.,-.4)*5.; // responsive sun size
+	float sunsize=7.-max(0.,texture2D(iChannel0,vec2(.6,.2)).x-.4)*5.; // responsive sun size
 	float an=atan(dir.x,dir.y)+iGlobalTime*1.5; // angle for drawing and rotating sun
 	float s=pow(clamp(1.0-length(dir.xy)*sunsize-abs(.2-mod(an,.4)),0.,1.),.1); // sun
 	float sb=pow(clamp(1.0-length(dir.xy)*(sunsize-.3)-abs(.2-mod(an,.4)),0.,1.),.1); // sun border
@@ -202,11 +202,15 @@ vec3 move(inout vec3 dir) {
 
 void main(void)
 {
-	vec2 uv = (gl_FragCoord.xy - iOffset.xy) / iResolution.xy*2.0 -1.0;
+	vec2 uv = (gl_FragCoord.xy-iOffset.xy) / iResolution.xy*2.-1.;
 	vec2 oriuv=uv;
 	uv.y*=iResolution.y/iResolution.x;
+	vec2 mouse=(iMouse.xy/iResolution.xy-.5)*3.;
+	if (iMouse.z<1.) mouse=vec2(0.,-0.05);
 	float fov=.9-max(0.,.7-iGlobalTime*.3);
 	vec3 dir=normalize(vec3(uv*fov,1.));
+	dir.yz*=rot(mouse.y);
+	dir.xz*=rot(mouse.x);
 	vec3 from=origin+move(dir);
 	vec3 color=raymarch(from,dir); 
 	#ifdef BORDER

@@ -1,1 +1,1 @@
-shadertoy.exe leizex
+shadertoy.exe shader=leizex resx=800 resy=600

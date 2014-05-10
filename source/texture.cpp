@@ -64,10 +64,15 @@ bool Textures::load_textures(const char* directory)
 
 	do
     {
-        trace("[TEXTURES]" "loading image: %s.", fdFile.cFileName);
+        trace("[TEXTURES]" "loading image '%s'.", fdFile.cFileName);
 
 		char filename[256];
 		sprintf_s(filename, sizeof(filename), "%s/%s", directory, fdFile.cFileName);
+
+		char shortname[256];
+		sprintf_s(shortname, sizeof(shortname), fdFile.cFileName);
+		char* ext = strstr(shortname, ".jpg");
+		if(ext) *ext = 0;
 
 		SDL_Surface* surface = IMG_Load(filename);
 		
@@ -75,14 +80,14 @@ bool Textures::load_textures(const char* directory)
 		if(surface)
 		{
 			// remove previous texture.
-			TextureMap::iterator it = m_textures.find(fdFile.cFileName);
+			TextureMap::iterator it = m_textures.find(shortname);
 			if(it != m_textures.end())
 			{
 				glDeleteTextures(1, &it->second);
 				m_textures.erase(it);
 			}
 
-			trace("[TEXTURES]" "creating texture...");
+			trace("[TEXTURES]" "creating texture '%s'...", shortname);
 
 			// convert to a OpenGL RBG surface. 
 			//SDL_Surface* openGLSurface = SDL_CreateRGBSurface(0, surface->w, surface->h, 24, 0xff000000, 0x00ff0000, 0x0000ff00,0);
@@ -99,7 +104,7 @@ bool Textures::load_textures(const char* directory)
 			glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, surface->w, surface->h, 0, GL_RGB, GL_UNSIGNED_BYTE, surface->pixels );
 			//glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, openGLSurface->w, openGLSurface->h, 0, GL_RGB, GL_UNSIGNED_BYTE, openGLSurface->pixels );
 			
-			TextureEntry entry(fdFile.cFileName, texture);
+			TextureEntry entry(shortname, texture);
 			m_textures.insert(entry);
 
 			SDL_FreeSurface(surface);
@@ -115,7 +120,17 @@ bool Textures::load_textures(const char* directory)
 
 void Textures::set_channel_texture(int channel, const char* texture_name)
 {
-	set_channel_texture(channel, find_texture(texture_name));
+	if(texture_name == NULL || texture_name[0] == 0)
+		unset_channel_texture(channel);
+	else
+		set_channel_texture(channel, find_texture(texture_name));
+}
+
+void Textures::unset_channel_texture(int channel)
+{
+	glEnable(GL_TEXTURE_2D);
+	glActiveTexture(GL_TEXTURE0+channel);
+	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 void Textures::set_channel_texture(int channel, GLuint texture)
@@ -127,6 +142,9 @@ void Textures::set_channel_texture(int channel, GLuint texture)
 
 GLuint Textures::find_texture(const char* texture_name)
 {
+	if(texture_name == NULL || texture_name[0] == 0)
+		return 0;
+
 	// remove previous texture.
 	TextureMap::iterator it = m_textures.find(texture_name);
 	if(it == m_textures.end())

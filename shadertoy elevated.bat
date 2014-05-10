@@ -1,1 +1,1 @@
-shadertoy.exe elevated
+shadertoy.exe shader=elevated resx=1024 resy=768

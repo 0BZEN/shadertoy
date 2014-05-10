@@ -77,6 +77,17 @@ struct ShaderInputs
 	Vector4f	iDate;						// (year, month, day, time in seconds)
 };
 
+// command line options
+const char* command_line_shader = "menger_journey";
+int command_line_display = 1;
+int command_line_resx = 800;
+int command_line_resy = 600;
+const char* command_line_tex0 = NULL;
+const char* command_line_tex1 = NULL;
+const char* command_line_tex2 = NULL;
+const char* command_line_tex3 = NULL;
+const char* command_line_operator="=";
+
 // render buffer.
 GLboolean	frame_buffer_enabled = true;
 GLint		frame_buffer_width;
@@ -96,6 +107,10 @@ SDL_GLContext sdl_opengl_context;
 GLuint			fragment_shader_program = 0;
 const char*		fragment_shader_name="";
 ShaderInputs	fragment_shader_inputs;
+const char*		fragment_shader_tex0=NULL;
+const char*		fragment_shader_tex1=NULL;
+const char*		fragment_shader_tex2=NULL;
+const char*		fragment_shader_tex3=NULL;
 
 void update_sdl_events()
 {
@@ -242,25 +257,25 @@ void update_shader_inputs(void)
 
 void update_shader_textures(void)
 {
-	textures.set_channel_texture(0, "noise4.jpg");
-	textures.set_channel_texture(1, "texture7.jpg");
-	textures.set_channel_texture(2, "texture10.jpg");
-	textures.set_channel_texture(3, "empty");
+	textures.set_channel_texture(0, fragment_shader_tex0);
+	textures.set_channel_texture(1, fragment_shader_tex1);
+	textures.set_channel_texture(2, fragment_shader_tex2);
+	textures.set_channel_texture(2, fragment_shader_tex3);
 }
 
 // dump texture to the screen, to double check.
 void debug_texture(const char* name)
 {
-	GLuint noise_texture = textures.find_texture(name);
-	
 	// Render to the screen
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glUseProgram(0);
+		
+	// use the debug texture as the only texture.
+	textures.set_channel_texture(0, frame_buffer_texture);
+	textures.unset_channel_texture(1);
+	textures.unset_channel_texture(2);
+	textures.unset_channel_texture(3);
 	
-	glEnable(GL_TEXTURE_2D);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, noise_texture);
-
 	glBegin(GL_QUADS);
 	glTexCoord2f(0.0f, 1.0f); glVertex2i(-1,  1);
 	glTexCoord2f(1.0f, 1.0f); glVertex2i( 1,  1);
@@ -305,7 +320,6 @@ void scene_to_buffer(void)
 	}
 }
 
-
 void buffer_to_display(void)
 {
 	glViewport(0, 0, dmScreenSettings.dmPelsWidth, dmScreenSettings.dmPelsHeight);
@@ -324,15 +338,12 @@ void buffer_to_display(void)
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glUseProgram(0);
 		
-		glEnable(GL_TEXTURE_2D);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, frame_buffer_texture);
-
-		// need to disable the other channels.
-		glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, 0);
-		glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D, 0);
-		glActiveTexture(GL_TEXTURE3); glBindTexture(GL_TEXTURE_2D, 0);
-
+		// use the frame buffer as the only texture.
+		textures.set_channel_texture(0, frame_buffer_texture);
+		textures.unset_channel_texture(1);
+		textures.unset_channel_texture(2);
+		textures.unset_channel_texture(3);
+				
 		oculus.render(OVR::Util::Render::StereoEye_Left);
 		oculus.render(OVR::Util::Render::StereoEye_Right);
 	}
@@ -342,15 +353,12 @@ void buffer_to_display(void)
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glUseProgram(0);
 		
-		glEnable(GL_TEXTURE_2D);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, frame_buffer_texture);
-
-		// need to disable the other channels.
-		glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, 0);
-		glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D, 0);
-		glActiveTexture(GL_TEXTURE3); glBindTexture(GL_TEXTURE_2D, 0);
-
+		// use the frame buffer as the only texture.
+		textures.set_channel_texture(0, frame_buffer_texture);
+		textures.unset_channel_texture(1);
+		textures.unset_channel_texture(2);
+		textures.unset_channel_texture(3);
+		
 		glBegin(GL_QUADS);
 		glTexCoord2f(0.0f, 1.0f); glVertex2i(-1,  1);
 		glTexCoord2f(1.0f, 1.0f); glVertex2i( 1,  1);
@@ -469,21 +477,76 @@ void sdl_main_loop()
 	}
 }
 
+void parse_command_line(int argc, char * argv[])
+{
+	for(int i = 1; i < argc; ++i)
+	{
+		char seps[] = "=";
+		char *value = NULL;
+		char *token = NULL;
+		token = strtok_s(argv[i], seps, &value);
+		if(!token || !value || token[0] == 0 || value[0] == 0) 
+			continue;
+		
+		if(strstr(token, "shader") != 0)
+		{
+			command_line_shader = value;
+		}
+		else if(token && strstr(token, "display") != 0)
+		{
+			int integer = atoi(value);
+			if(integer > 0) command_line_display = integer;
+		}
+		else if(token && strstr(token, "resx") != 0)
+		{
+			int integer = atoi(value);
+			if(integer > 0) command_line_resx = integer;
+		}
+		else if(token && strstr(token, "resy") != 0)
+		{
+			int integer = atoi(value);
+			if(integer > 0) command_line_resy = integer;
+		}
+		else if(token && strstr(token, "tex0") != 0)
+		{
+			command_line_tex0 = value;
+		}
+		else if(token && strstr(token, "tex1") != 0)
+		{
+			command_line_tex1 = value;
+		}
+		else if(token && strstr(token, "tex2") != 0)
+		{
+			command_line_tex2 = value;
+		}
+		else if(token && strstr(token, "tex3") != 0)
+		{
+			command_line_tex3 = value;
+		}			
+	}
+}
+
 int SDL_main(int argc, char * argv[])
 {
-    time_t now = time(0);
+    parse_command_line(argc, argv);
+
+    int displayId			= command_line_display;
+	frame_buffer_width		= command_line_resx;
+    frame_buffer_height		= command_line_resy;
+    fragment_shader_name	= command_line_shader;
+	fragment_shader_tex0	= command_line_tex0;
+	fragment_shader_tex1	= command_line_tex1;
+	fragment_shader_tex2	= command_line_tex2;
+	fragment_shader_tex3	= command_line_tex3;
+
+	char fragment_shader_filename[128];
+	sprintf_s(fragment_shader_filename, sizeof(fragment_shader_filename), "./shaders/%s.shader", fragment_shader_name);
+	
+	time_t now = time(0);
     tm time_now;
     localtime_s(&time_now, &now);
 	char date_now[128];
 	asctime_s(date_now, sizeof(date_now), &time_now);
-
-    fragment_shader_name = (argc > 1)? argv[1] : "menger_journey";
-	int displayId = (argc > 2)? atoi(argv[2]) : 1;
-    frame_buffer_width = (argc > 3)? atoi(argv[3]) : 800;
-    frame_buffer_height = (argc > 4)? atoi(argv[4]) : 600;
-
-	char fragment_shader_filename[128];
-	sprintf_s(fragment_shader_filename, sizeof(fragment_shader_filename), "./shaders/%s.shader", fragment_shader_name);
 	
 	TRACE("------------------------------------------------------");
     TRACE("- SHADERTOY");

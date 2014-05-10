@@ -1,1 +1,1 @@
-shadertoy.exe cartoon
+shadertoy.exe shader=cartoon resx=1024 resy=768 tex0=empty tex1=nyan

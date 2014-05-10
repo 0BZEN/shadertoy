@@ -13,6 +13,7 @@ public:
 	GLuint find_texture(const char* texture_name);
 	void set_channel_texture(int channel, GLuint texture);
 	void set_channel_texture(int channel, const char* texture_name);
+	void unset_channel_texture(int channel);
 
 	bool create_empty_texture();
 	typedef std::map<std::string, GLuint> TextureMap;
