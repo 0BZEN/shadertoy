@@ -100,26 +100,35 @@ vec3 calcNormal( in vec3 pos )
 
 void generateRay( out vec3 rayDir, out vec3 rayPos, in vec2 p, float ftime )
 {
-    vec2 s = p;
+	if(iCamera.active)
+	{		
+		vec4 dir = iCamera.position[0] * (p.x * iCamera.screen.x) + iCamera.position[1] * (p.y * iCamera.screen.y) + iCamera.position[2] * -iCamera.screen.z;
+		rayDir   = normalize(dir.xyz);
+		rayPos   = iCamera.position[3];
+	}
+	else
+	{
+		vec2 s = p;
 
-    float r2 = s.x*s.x*0.31640625 + s.y*s.y; // (9 / 16)^2
-    vec2 d = s*(7.0-sqrt(37.5-11.5*r2))/(r2+1.0);
+		float r2 = s.x*s.x*0.31640625 + s.y*s.y; // (9 / 16)^2
+		vec2 d = s*(7.0-sqrt(37.5-11.5*r2))/(r2+1.0);
 
-    vec3 rayTar = vec3( 0.0, 1.5, 2.0 );
+		vec3 rayTar = vec3( 0.0, 1.5, 2.0 );
 
-    rayPos = rayTar + vec3( -sin(6.2831853*ftime/20.0), 0.75*cos(6.2831853*ftime/20.0+0.5), -cos(6.2831853*ftime/20.0) );
+		rayPos = rayTar + vec3( -sin(6.2831853*ftime/20.0), 0.75*cos(6.2831853*ftime/20.0+0.5), -cos(6.2831853*ftime/20.0) );
 
-    rayTar += 0.075*vec3( noise3f( vec3(2.0*ftime,0.0,0.5),0), noise3f( vec3(2.0*ftime,0.1,0.4),7), noise3f( vec3(2.0*ftime,0.2,0.3),9) );
+		rayTar += 0.075*vec3( noise3f( vec3(2.0*ftime,0.0,0.5),0), noise3f( vec3(2.0*ftime,0.1,0.4),7), noise3f( vec3(2.0*ftime,0.2,0.3),9) );
 
-    float roll = 0.1*noise3f( vec3(2.0*ftime,0.0,0.0), 13 );
+		float roll = 0.1*noise3f( vec3(2.0*ftime,0.0,0.0), 13 );
 
-    vec3 up = vec3( 0.0, cos(roll), sin(roll) );
+		vec3 up = vec3( 0.0, cos(roll), sin(roll) );
 
-    vec3 dd = normalize( rayTar - rayPos );
-    vec3 rr = normalize( cross( dd, up ) );
-    vec3 uu = normalize( cross( rr, dd ) );
+		vec3 dd = normalize( rayTar - rayPos );
+		vec3 rr = normalize( cross( dd, up ) );
+		vec3 uu = normalize( cross( rr, dd ) );
 
-    rayDir = normalize( d.x*rr + d.y*uu + dd );
+		rayDir = normalize( d.x*rr + d.y*uu + dd );
+	}
 }
 
 vec3 addbump( in vec3 nor, float bumpa, in vec3 x )
@@ -141,8 +150,8 @@ void main(void)
     generateRay( rd, ro, p, iGlobalTime );
 
 	float centredist = dot(p, p);
-	float radius = 0.001 + 0.01 * centredist;
-	float limit = 5.0 - 3.0 * centredist;
+	float radius = 0.001;
+	float limit = 3.0;
 	float step = 0.12;
 
     // ray march scene
@@ -153,6 +162,7 @@ void main(void)
         float h = map( pos, ao );
         if( h < radius ) break;
         t += h*step;
+        radius += 0.0001;
     }
     nor = calcNormal( pos );
 

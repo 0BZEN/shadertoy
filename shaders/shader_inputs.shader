@@ -9,3 +9,11 @@ uniform sampler2D iChannel1;	         // input channel. XX = 2D/Cube
 uniform sampler2D iChannel2;	         // input channel. XX = 2D/Cube
 uniform sampler2D iChannel3;	         // input channel. XX = 2D/Cube
 uniform vec4      iDate;                 // (year, month, day, time in seconds)
+
+struct Camera
+{
+	int  active;	// external camera active.
+	mat4 position;	// external camera position.
+	vec3 screen;	// external camera screen specifications (halfSizeX, halfSizeY, distanceZ).
+};
+uniform Camera iCamera; // Oculus HMD eye position.

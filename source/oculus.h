@@ -16,6 +16,8 @@ public:
 	
 	bool get_sensor_position(float& x, float& y, float& z) const;
 	bool get_sensor_orientation(float& yaw, float& pitch, float& roll) const;
+	bool calculateEyePosition(OVR::Matrix4f& eyePosition, const OVR::Matrix4f& neckPosition, OVR::Util::Render::StereoEye eye) const;
+	bool calculateEyeScreen(OVR::Vector3f& eyeScreen);
 	
 	const OVR::HMDInfo& get_HMD_info() const;
 	OVR::Util::Render::StereoConfig get_stereo_config() const;

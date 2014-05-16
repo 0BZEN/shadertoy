@@ -32,6 +32,7 @@ extern void gl_uniform_1i(int p, const char* varname, int value);
 extern void gl_uniform_1fv(int p, const char* varname, int count, const float* values);
 extern void gl_uniform_3fv(int p, const char* varname, int count, const float* values);
 extern void gl_uniform_4fv(int p, const char* varname, int count, const float* values);
+extern void gl_uniform_mat4f(int p, const char* varname, bool transpose, const float* values);
 
 extern void gl_mult_matrix(const OVR::Matrix4f& matrix);
 

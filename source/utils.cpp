@@ -32,14 +32,15 @@ void debug_break()
     __asm int 3; 
 }
 
-void gl_uniform_1f(int p, const char* varname, float a)								{ GLuint varid = glGetUniformLocation(p, varname); glUniform1f(varid, a); }
-void gl_uniform_2f(int p, const char* varname, float a, float b)					{ GLuint varid = glGetUniformLocation(p, varname); glUniform2f(varid, a, b); }
-void gl_uniform_3f(int p, const char* varname, float a, float b, float c)			{ GLuint varid = glGetUniformLocation(p, varname); glUniform3f(varid, a, b, c); }
-void gl_uniform_4f(int p, const char* varname, float a, float b, float c, float d)	{ GLuint varid = glGetUniformLocation(p, varname); glUniform4f(varid, a, b, c, d); }
-void gl_uniform_1i(int p, const char* varname, int value)							{ GLuint varid = glGetUniformLocation(p, varname); glUniform1i(varid, value); }
-void gl_uniform_1fv(int p, const char* varname, int count, const float* values)		{ GLuint varid = glGetUniformLocation(p, varname); glUniform1fv(varid, count, values); }
-void gl_uniform_3fv(int p, const char* varname, int count, const float* values)		{ GLuint varid = glGetUniformLocation(p, varname); glUniform3fv(varid, count, values); }
-void gl_uniform_4fv(int p, const char* varname, int count, const float* values)		{ GLuint varid = glGetUniformLocation(p, varname); glUniform4fv(varid, count, values); }
+void gl_uniform_1f(int p, const char* varname, float a)									{ GLuint varid = glGetUniformLocation(p, varname); glUniform1f(varid, a); }
+void gl_uniform_2f(int p, const char* varname, float a, float b)						{ GLuint varid = glGetUniformLocation(p, varname); glUniform2f(varid, a, b); }
+void gl_uniform_3f(int p, const char* varname, float a, float b, float c)				{ GLuint varid = glGetUniformLocation(p, varname); glUniform3f(varid, a, b, c); }
+void gl_uniform_4f(int p, const char* varname, float a, float b, float c, float d)		{ GLuint varid = glGetUniformLocation(p, varname); glUniform4f(varid, a, b, c, d); }
+void gl_uniform_1i(int p, const char* varname, int value)								{ GLuint varid = glGetUniformLocation(p, varname); glUniform1i(varid, value); }
+void gl_uniform_1fv(int p, const char* varname, int count, const float* values)			{ GLuint varid = glGetUniformLocation(p, varname); glUniform1fv(varid, count, values); }
+void gl_uniform_3fv(int p, const char* varname, int count, const float* values)			{ GLuint varid = glGetUniformLocation(p, varname); glUniform3fv(varid, count, values); }
+void gl_uniform_4fv(int p, const char* varname, int count, const float* values)			{ GLuint varid = glGetUniformLocation(p, varname); glUniform4fv(varid, count, values); }
+void gl_uniform_mat4f(int p, const char* varname, bool transpose, const float* values)	{ GLuint varid = glGetUniformLocation(p, varname); glUniformMatrix4fv(varid, 1, transpose, values); }
 
 void gl_mult_matrix(const OVR::Matrix4f& matrix)
 { 

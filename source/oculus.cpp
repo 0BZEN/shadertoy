@@ -134,6 +134,33 @@ bool OculusDevice::get_sensor_orientation(float& yaw, float& pitch, float& roll)
 	return true;
 }
 
+bool OculusDevice::calculateEyeScreen(OVR::Vector3f& eyeScreen)
+{
+	if(!m_sensor_fusion.IsAttachedToSensor())
+		return false;
+
+	float yFOV = m_stereo_config.GetYFOVRadians();
+	float xFOV = m_stereo_config.GetYFOVRadians() * m_stereo_config.GetAspect();
+	eyeScreen.z = 1.0f;
+	eyeScreen.x = tan(xFOV * 0.5f) * eyeScreen.z;
+	eyeScreen.y = tan(yFOV * 0.5f) * eyeScreen.z;
+	return true;
+}
+
+bool OculusDevice::calculateEyePosition(OVR::Matrix4f& eyePosition, const OVR::Matrix4f& neckPosition, OVR::Util::Render::StereoEye eye) const
+{
+	if(!m_sensor_fusion.IsAttachedToSensor())
+		return false;
+
+	const float eyeSign[] = { 0.0f, 1.0f, 1.0f };
+	OVR::Vector3f hmdPos(0.0f, 0.0f, 0.0f);
+	OVR::Quatf hmdOrient = m_sensor_fusion.GetOrientation();
+	OVR::Vector3f eyeOffset(m_stereo_config.GetIPD() * eyeSign[eye], 0.0f, m_stereo_config.GetEyeToScreenDistance());
+	
+	eyePosition = OVR::Matrix4f(hmdOrient) * OVR::Matrix4f::Translation(eyeOffset);
+	return true;
+}
+
 const OVR::HMDInfo& OculusDevice::get_HMD_info() const
 {
 	return m_HMD_info;

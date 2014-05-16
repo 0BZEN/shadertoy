@@ -50,6 +50,10 @@ struct ShaderInputs
 		iChannelResolution[3]	= Vector3f(100.0f, 100.0f, 100.0f);
 		iMouse					= Vector4f(0.0f, 0.0f, 0.0f, 0.0f);
 		iDate					= Vector4f(0.0f, 0.0f, 0.0f, 0.0f);
+		
+		iCameraActive		= 0;
+		iCameraScreen		= OVR::Vector3f(2.0f, 1.5f, 1.0f);
+		iCameraPosition.SetIdentity();
 	}
 
 	void apply_inputs(int program)
@@ -66,15 +70,22 @@ struct ShaderInputs
 		gl_uniform_3fv(program, "iChannelResolution",	4,	&iChannelResolution[0].x);
 		gl_uniform_4fv(program, "iMouse",				1,	&iMouse.x);
 		gl_uniform_4fv(program, "iDate",				1,	&iDate.x);
+
+		gl_uniform_1i	 (program, "iCamera.active",				 iCameraActive);
+		gl_uniform_3fv	 (program, "iCamera.screen",		1,		&iCameraScreen.x);
+		gl_uniform_mat4f (program, "iCamera.position",		true,	&iCameraPosition.M[0][0]);
 	}
 
-	Vector3f	iOffset;					// viewport offset (in pixels)
-	Vector3f	iResolution;				// viewport resolution (in pixels)
-	float		iGlobalTime;				// shader playback time (in seconds)
-	float		iChannelTime[4];			// channel playback time (in seconds)
-	Vector3f	iChannelResolution[4];		// channel resolution (in pixels)
-	Vector4f	iMouse;						// mouse pixel coords. xy: current (if MLB down), zw: click
-	Vector4f	iDate;						// (year, month, day, time in seconds)
+	Vector3f		iOffset;					// viewport offset (in pixels)
+	Vector3f		iResolution;				// viewport resolution (in pixels)
+	float			iGlobalTime;				// shader playback time (in seconds)
+	float			iChannelTime[4];			// channel playback time (in seconds)
+	Vector3f		iChannelResolution[4];		// channel resolution (in pixels)
+	Vector4f		iMouse;						// mouse pixel coords. xy: current (if MLB down), zw: click
+	Vector4f		iDate;						// (year, month, day, time in seconds)
+	int				iCameraActive;				// if a custom camera is present.
+	OVR::Matrix4f	iCameraPosition;			// the matrix of the custom camera.
+	OVR::Vector3f	iCameraScreen;				// the dimensions of the custom camera screen (halfsizeX, halfsizeY, distance from camera position).
 };
 
 // command line options
@@ -284,6 +295,8 @@ void debug_texture(const char* name)
 	glEnd();
 }
 
+OVR::Matrix4f neckPosition;
+
 void scene_to_buffer(void)
 {
 	if(frame_buffer_enabled)
@@ -292,17 +305,23 @@ void scene_to_buffer(void)
 		
 		if(oculus.has_display())
 		{
+			neckPosition.M[3][2] += 0.05f;
+
 			// render to buffer.
 			glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer);
 			glUseProgram(fragment_shader_program);
 
 			fragment_shader_inputs.iOffset		= ShaderInputs::Vector3f(0.0f, 0.0f, 0.0f);
 			fragment_shader_inputs.iResolution	= ShaderInputs::Vector3f((float)frame_buffer_width / 2, (float)frame_buffer_height, 0.0f);
+			fragment_shader_inputs.iCameraActive =	oculus.calculateEyeScreen(fragment_shader_inputs.iCameraScreen) && 
+													oculus.calculateEyePosition(fragment_shader_inputs.iCameraPosition, neckPosition, OVR::Util::Render::StereoEye_Left);
 			fragment_shader_inputs.apply_inputs(fragment_shader_program);		
 			glRecti(-1, -1, 0, 1);
 
-			fragment_shader_inputs.iOffset		= ShaderInputs::Vector3f((float)frame_buffer_width / 2, 0.0f, 0.0f);
-			fragment_shader_inputs.iResolution	= ShaderInputs::Vector3f((float)frame_buffer_width / 2, (float)frame_buffer_height, 0.0f);
+			fragment_shader_inputs.iOffset		 = ShaderInputs::Vector3f((float)frame_buffer_width / 2, 0.0f, 0.0f);
+			fragment_shader_inputs.iResolution	 = ShaderInputs::Vector3f((float)frame_buffer_width / 2, (float)frame_buffer_height, 0.0f);
+			fragment_shader_inputs.iCameraActive =	oculus.calculateEyeScreen(fragment_shader_inputs.iCameraScreen) && 
+													oculus.calculateEyePosition(fragment_shader_inputs.iCameraPosition, neckPosition, OVR::Util::Render::StereoEye_Right);
 			fragment_shader_inputs.apply_inputs(fragment_shader_program);
 			glRecti(0, -1, 1, 1);
 		}
@@ -312,6 +331,7 @@ void scene_to_buffer(void)
 			glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer);
 			glUseProgram(fragment_shader_program);
 
+			fragment_shader_inputs.iCameraActive = false;
 			fragment_shader_inputs.iOffset		= ShaderInputs::Vector3f(0.0f, 0.0f, 0.0f);
 			fragment_shader_inputs.iResolution	= ShaderInputs::Vector3f((float)frame_buffer_width, (float)frame_buffer_height, 0.0f);
 			fragment_shader_inputs.apply_inputs(fragment_shader_program);
@@ -326,8 +346,9 @@ void buffer_to_display(void)
     
 	if(!frame_buffer_enabled)
 	{
-		fragment_shader_inputs.iOffset		= ShaderInputs::Vector3f(0.0f, 0.0f, 0.0f);
-		fragment_shader_inputs.iResolution	= ShaderInputs::Vector3f((float)frame_buffer_width, (float)frame_buffer_height, 0.0f);
+		fragment_shader_inputs.iCameraActive = false;
+		fragment_shader_inputs.iOffset		 = ShaderInputs::Vector3f(0.0f, 0.0f, 0.0f);
+		fragment_shader_inputs.iResolution	 = ShaderInputs::Vector3f((float)frame_buffer_width, (float)frame_buffer_height, 0.0f);
 		fragment_shader_inputs.apply_inputs(fragment_shader_program);
 		glUseProgram(fragment_shader_program);
 		glRecti(-1, -1, 1, 1);
