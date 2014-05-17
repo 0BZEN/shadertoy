@@ -167,6 +167,14 @@
 	</References>
 	<Files>
 		<File
+			RelativePath=".\source\body.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\source\body.h"
+			>
+		</File>
+		<File
 			RelativePath=".\source\oculus.cpp"
 			>
 		</File>

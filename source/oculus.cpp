@@ -147,17 +147,24 @@ bool OculusDevice::calculateEyeScreen(OVR::Vector3f& eyeScreen)
 	return true;
 }
 
-bool OculusDevice::calculateEyePosition(OVR::Matrix4f& eyePosition, const OVR::Matrix4f& neckPosition, OVR::Util::Render::StereoEye eye) const
+bool OculusDevice::calculateEyePosition(OVR::Matrix4f& eyeMatrix, const OVR::Matrix4f& neckMatrix, OVR::Util::Render::StereoEye eye) const
 {
 	if(!m_sensor_fusion.IsAttachedToSensor())
-		return false;
+	{
+		eyeMatrix = neckMatrix;
+		return true;
+	}	
 
-	const float eyeSign[] = { 0.0f, 1.0f, 1.0f };
-	OVR::Vector3f hmdPos(0.0f, 0.0f, 0.0f);
-	OVR::Quatf hmdOrient = m_sensor_fusion.GetOrientation();
-	OVR::Vector3f eyeOffset(m_stereo_config.GetIPD() * eyeSign[eye], 0.0f, m_stereo_config.GetEyeToScreenDistance());
+	OVR::Matrix4f hmdMatrix = OVR::Matrix4f(m_sensor_fusion.GetOrientation());
+
+	static float eyeSign[] = { 0.0f, -1.0f, 1.0f };
+	static float eyeScale = -0.1f;
+	OVR::Vector3f eyeOffset(m_stereo_config.GetIPD() * eyeSign[eye] * eyeScale, 0.1f, m_stereo_config.GetEyeToScreenDistance() * eyeScale);
+	OVR::Matrix4f eyeMatrixLocal = OVR::Matrix4f::Translation(eyeOffset) * hmdMatrix;
+	eyeMatrix = eyeMatrixLocal * neckMatrix;
 	
-	eyePosition = OVR::Matrix4f(hmdOrient) * OVR::Matrix4f::Translation(eyeOffset);
+	// fix this!
+	eyeMatrix = neckMatrix;
 	return true;
 }
 

@@ -1,6 +1,7 @@
 
 #include "utils.h"
 #include "oculus.h"
+#include "body.h"
 #include "texture.h"
 
 // oculus device
@@ -8,6 +9,9 @@ OculusDevice oculus;
 
 // textures 
 Textures textures;
+
+// body
+Body body(OVR::Vector3f(0.0f, 0.0f, 0.0f), OVR::Vector3f(0.0f, 0.0f, 0.0f));
 
 // display.
 DEVMODE dmScreenSettings;
@@ -105,7 +109,7 @@ GLint		frame_buffer_width;
 GLint		frame_buffer_height;
 GLuint		frame_buffer = 0;
 GLuint		frame_buffer_texture = 0;
-GLint		frame_time;
+GLint		frame_time_total;
 GLint		frame_count;
 
 bool sdl_recompile = false;
@@ -113,6 +117,8 @@ bool sdl_quit = false;
 bool sdl_snapshot = false;
 SDL_Window *sdl_window=NULL;
 SDL_GLContext sdl_opengl_context;
+SDL_Joystick* sdl_joystick=NULL;
+bool sdl_key[1024];
 
 // fragment shader.
 GLuint			fragment_shader_program = 0;
@@ -130,6 +136,9 @@ void update_sdl_events()
 	{
 		if( event.type == SDL_KEYDOWN )
 		{
+			if(event.key.keysym.sym < sizeof(sdl_key)) 
+				sdl_key[event.key.keysym.sym] = true;
+
 			if(event.key.keysym.sym == SDLK_F7)
 			{
 				sdl_recompile = true;
@@ -149,6 +158,9 @@ void update_sdl_events()
 		}
 		else if( event.type == SDL_KEYUP )
 		{
+			if(event.key.keysym.sym < sizeof(sdl_key)) 
+				sdl_key[event.key.keysym.sym] = false;
+
 			//on_sdl_key_up(event.key.keysym.sym);
 		}
 		else if( event.type == SDL_QUIT )
@@ -177,6 +189,9 @@ void init_sdl(DEVMODE dmScreenSettings)
 	SDL_SetWindowPosition(sdl_window, dmScreenSettings.dmPosition.x, dmScreenSettings.dmPosition.y);
 	SDL_SetWindowSize(sdl_window, dmScreenSettings.dmPelsWidth, dmScreenSettings.dmPelsHeight);
 	//SDL_SetWindowFullscreen(sdl_window, SDL_WINDOW_FULLSCREEN);
+
+	sdl_joystick = SDL_JoystickOpen(0);
+	memset(sdl_key, 0, sizeof(sdl_key));
 }
 
 void init_opengl()
@@ -261,7 +276,7 @@ void update_shader_inputs(void)
 	fragment_shader_inputs.iMouse.x		= (float)x;
 	fragment_shader_inputs.iMouse.y		= (float)y;
 	fragment_shader_inputs.iMouse.z		= (buttons &SDL_BUTTON(1))? 1.0f : 0.0f;
-	fragment_shader_inputs.iGlobalTime	= (float)frame_time / 1000.0f;
+	fragment_shader_inputs.iGlobalTime	= (float)frame_time_total / 1000.0f;
 	fragment_shader_inputs.iOffset		= ShaderInputs::Vector3f(0.0f, 0.0f, 0.0f);
 	fragment_shader_inputs.iResolution	= ShaderInputs::Vector3f((float)frame_buffer_width, (float)frame_buffer_height, 0.0f);
 }
@@ -314,14 +329,14 @@ void scene_to_buffer(void)
 			fragment_shader_inputs.iOffset		= ShaderInputs::Vector3f(0.0f, 0.0f, 0.0f);
 			fragment_shader_inputs.iResolution	= ShaderInputs::Vector3f((float)frame_buffer_width / 2, (float)frame_buffer_height, 0.0f);
 			fragment_shader_inputs.iCameraActive =	oculus.calculateEyeScreen(fragment_shader_inputs.iCameraScreen) && 
-													oculus.calculateEyePosition(fragment_shader_inputs.iCameraPosition, neckPosition, OVR::Util::Render::StereoEye_Left);
+													oculus.calculateEyePosition(fragment_shader_inputs.iCameraPosition, body.get_matrix(), OVR::Util::Render::StereoEye_Left);
 			fragment_shader_inputs.apply_inputs(fragment_shader_program);		
 			glRecti(-1, -1, 0, 1);
 
 			fragment_shader_inputs.iOffset		 = ShaderInputs::Vector3f((float)frame_buffer_width / 2, 0.0f, 0.0f);
 			fragment_shader_inputs.iResolution	 = ShaderInputs::Vector3f((float)frame_buffer_width / 2, (float)frame_buffer_height, 0.0f);
 			fragment_shader_inputs.iCameraActive =	oculus.calculateEyeScreen(fragment_shader_inputs.iCameraScreen) && 
-													oculus.calculateEyePosition(fragment_shader_inputs.iCameraPosition, neckPosition, OVR::Util::Render::StereoEye_Right);
+													oculus.calculateEyePosition(fragment_shader_inputs.iCameraPosition, body.get_matrix(), OVR::Util::Render::StereoEye_Right);
 			fragment_shader_inputs.apply_inputs(fragment_shader_program);
 			glRecti(0, -1, 1, 1);
 		}
@@ -445,19 +460,91 @@ void setup_display(int display_id)
 	}
 }
 
+void update_joystick_inputs(OVR::Vector3f& lin_inputs, OVR::Vector3f& ang_inputs)
+{
+	static float move_speed = 4.0f;
+	static float look_speed = 2.0f;
+	
+	#define sign(a) (((a) < 0.0f)? -1.0f : 1.0f)
+
+	if(sdl_joystick == NULL)
+		return;
+
+	static float deadZone = 8186.0f;
+	static float maxZone = 32768.0f;
+	
+	float axes[32];
+	int numAxes = SDL_JoystickNumAxes(sdl_joystick);
+	for(int i = 0; i < numAxes; ++i)
+	{
+		float val = SDL_JoystickGetAxis(sdl_joystick, i);
+		axes[i] = (fabs(val) > deadZone)? sign(val) * (fabs(val) - deadZone) / (maxZone - deadZone) : 0.0f;
+	}
+
+	int buttons[32];
+	int numButtons = SDL_JoystickNumButtons(sdl_joystick);
+	for(int i = 0; i < numButtons; ++i)
+		buttons[i] = SDL_JoystickGetButton(sdl_joystick, i);
+
+	lin_inputs += OVR::Vector3f(axes[0], 0.0f, axes[1]) * move_speed;
+	ang_inputs += OVR::Vector3f(axes[3], -axes[2], axes[4] * 0.25f - axes[5] * 0.25f) * look_speed;
+}
+
+void update_mouse_keyboard_inputs(OVR::Vector3f& lin_inputs, OVR::Vector3f& ang_inputs)
+{	
+	static float move_speed = 4.0f;
+	static float look_speed = 4.0f;
+	
+	int x, y;
+	SDL_SetRelativeMouseMode(SDL_TRUE);
+	unsigned int butts = SDL_GetRelativeMouseState(&x, &y);
+
+	float axes[32];
+	int numAxes = 2;
+	axes[0] = x / (float)dmScreenSettings.dmPelsWidth;
+	axes[1] = y / (float)dmScreenSettings.dmPelsHeight;
+
+	float buttons[32];
+	int numButtons = 4;
+	buttons[0] = (float)(sdl_key[SDLK_w])? 1.0f : 0.0f;
+	buttons[1] = (float)(sdl_key[SDLK_s])? 1.0f : 0.0f;
+	buttons[2] = (float)(sdl_key[SDLK_a])? 1.0f : 0.0f;
+	buttons[3] = (float)(sdl_key[SDLK_d])? 1.0f : 0.0f;
+	buttons[4] = (float)(butts & 1)? 1.0f : 0.0f;
+	buttons[5] = (float)(butts & 4)? 1.0f : 0.0f;
+
+	ang_inputs += OVR::Vector3f(axes[1], -axes[0], buttons[4] * 0.25f - buttons[5] * 0.25f) * look_speed;
+	lin_inputs += OVR::Vector3f(buttons[3] - buttons[2], 0.0f, buttons[1] - buttons[0]) * move_speed;
+}
+
+void update_body(float dt)
+{
+	OVR::Vector3f lin_inputs;
+	OVR::Vector3f ang_inputs;
+	update_joystick_inputs(lin_inputs, ang_inputs);
+	update_mouse_keyboard_inputs(lin_inputs, ang_inputs);
+
+	body.apply_inputs(lin_inputs, ang_inputs, dt);
+	body.integrate(dt);
+}
+
 // main loop. Do various bits till we want to quit.
 void sdl_main_loop()
 {
-	unsigned int sdl_frame_timestart = SDL_GetTicks();
+	unsigned int sdl_frame_begin = SDL_GetTicks();
 	unsigned int sdl_frame_count = 0;
-
+	unsigned int frame_time_last = SDL_GetTicks();
+		
 	while(!sdl_quit)
 	{
-		frame_time = SDL_GetTicks() - sdl_frame_timestart;
+		unsigned int frame_time_delta = SDL_GetTicks() - frame_time_last;
+		frame_time_last = SDL_GetTicks();
+		frame_time_total = frame_time_last - sdl_frame_begin;
 
 		update_sdl_events();
 
-	
+		update_body(frame_time_delta / 1000.0f);
+
 		update_shader_inputs();
 	
 		update_shader_textures();
@@ -491,8 +578,8 @@ void sdl_main_loop()
 
 		if (sdl_quit) 
 		{
-			unsigned int sdl_frame_timestop = SDL_GetTicks();
-			TRACE("- average : %.3f fps", sdl_frame_count / (float)((sdl_frame_timestop - sdl_frame_timestart) / 1000.0f));
+			unsigned int sdl_frame_end = SDL_GetTicks();
+			TRACE("- average : %.3f fps", sdl_frame_count / (float)((sdl_frame_end - sdl_frame_begin) / 1000.0f));
 			TRACE("------------------------------------------------------");
 		}
 	}
