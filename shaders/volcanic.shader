@@ -174,6 +174,47 @@ vec3 path( float time )
 	
 }
 
+void generateRay( out vec3 rd, out vec3 ro, in vec2 p )
+{
+	if(iCamera.active)
+	{		
+		vec4 dir = iCamera.position[0] * (p.x * iCamera.screen.x) + iCamera.position[1] * (p.y * iCamera.screen.y) + iCamera.position[2] * -iCamera.screen.z;
+		rd = normalize(dir.xyz);
+		ro = iCamera.position[3];
+	}
+	else
+	{
+		p.x *= iResolution.x / iResolution.y;
+		
+		// camera	
+		float off = step( 0.001, iMouse.z )*6.0*iMouse.x/iResolution.x;
+		float time = 2.7+iGlobalTime + off;
+		ro = path( time+0.0 );
+		
+		vec3 ta = path( time+1.6 );
+		//ta.y *= 0.3 + 0.25*cos(0.11*time);
+		ta.y *= 0.35 + 0.25*sin(0.09*time);
+		float roll = 0.3*sin(1.0+0.07*time);
+		
+		// camera tx
+		vec3 cw = normalize(ta-ro);
+		vec3 cp = vec3(sin(roll), cos(roll),0.0);
+		vec3 cu = normalize(cross(cw,cp));
+		vec3 cv = normalize(cross(cu,cw));
+		
+		float r2 = p.x*p.x*0.32 + p.y*p.y;
+		p *= (7.0-sqrt(37.5-11.5*r2))/(r2+1.0);
+
+		rd = normalize( p.x*cu + p.y*cv + 2.1*cw );
+
+		#ifdef STEREO
+		vec3 fo = ro + rd*7.0; // put focus plane behind Mike
+		ro -= 0.2*cu*eyeID;    // eye separation
+		rd = normalize(fo-ro);
+		#endif
+	}
+}
+
 void main( void )
 {
 	#ifdef STEREO
@@ -182,35 +223,12 @@ void main( void )
 
     vec2 q = (gl_FragCoord.xy - iOffset.xy) / iResolution.xy;
 	vec2 p = -1.0 + 2.0*q;
-	p.x *= iResolution.x / iResolution.y;
-	
-	
-    // camera	
-	float off = step( 0.001, iMouse.z )*6.0*iMouse.x/iResolution.x;
-	float time = 2.7+iGlobalTime + off;
-	vec3 ro = path( time+0.0 );
-	vec3 ta = path( time+1.6 );
-	//ta.y *= 0.3 + 0.25*cos(0.11*time);
-	ta.y *= 0.35 + 0.25*sin(0.09*time);
-	float roll = 0.3*sin(1.0+0.07*time);
-	
-	// camera tx
-	vec3 cw = normalize(ta-ro);
-	vec3 cp = vec3(sin(roll), cos(roll),0.0);
-	vec3 cu = normalize(cross(cw,cp));
-	vec3 cv = normalize(cross(cu,cw));
-	
-	float r2 = p.x*p.x*0.32 + p.y*p.y;
-    p *= (7.0-sqrt(37.5-11.5*r2))/(r2+1.0);
 
-	vec3 rd = normalize( p.x*cu + p.y*cv + 2.1*cw );
-
-	#ifdef STEREO
-	vec3 fo = ro + rd*7.0; // put focus plane behind Mike
-	ro -= 0.2*cu*eyeID;    // eye separation
-	rd = normalize(fo-ro);
-    #endif
-
+	// generate ray		
+	vec3 ro;
+	vec3 rd;
+	generateRay( rd, ro, p );
+	
     // sky	 
 	vec3 col = vec3(0.32,0.36,0.4) - rd.y*0.4;
     float sun = clamp( dot(rd,lig), 0.0, 1.0 );
@@ -219,7 +237,6 @@ void main( void )
 
 	vec3 bcol = col;
     
-
     // terrain	
 	float t = raymarchTerrain(ro, rd);
     if( t>0.0 )

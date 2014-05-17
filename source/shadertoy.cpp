@@ -462,8 +462,9 @@ void setup_display(int display_id)
 
 void update_joystick_inputs(OVR::Vector3f& lin_inputs, OVR::Vector3f& ang_inputs)
 {
+	static float fast_speed = 16.0f;
 	static float move_speed = 4.0f;
-	static float look_speed = 2.0f;
+	static float look_speed = 3.0f;
 	
 	#define sign(a) (((a) < 0.0f)? -1.0f : 1.0f)
 
@@ -486,14 +487,15 @@ void update_joystick_inputs(OVR::Vector3f& lin_inputs, OVR::Vector3f& ang_inputs
 	for(int i = 0; i < numButtons; ++i)
 		buttons[i] = SDL_JoystickGetButton(sdl_joystick, i);
 
-	lin_inputs += OVR::Vector3f(axes[0], 0.0f, axes[1]) * move_speed;
-	ang_inputs += OVR::Vector3f(axes[3], -axes[2], axes[4] * 0.25f - axes[5] * 0.25f) * look_speed;
+	lin_inputs += OVR::Vector3f(axes[0], 0.0f, axes[1]) * (move_speed + fast_speed * (axes[5] - axes[4]));
+	ang_inputs += OVR::Vector3f(axes[3], -axes[2], buttons[9] * 0.25f - buttons[8] * 0.25f) * look_speed;
 }
 
 void update_mouse_keyboard_inputs(OVR::Vector3f& lin_inputs, OVR::Vector3f& ang_inputs)
 {	
+	static float fast_speed = 16.0f;
 	static float move_speed = 4.0f;
-	static float look_speed = 4.0f;
+	static float look_speed = 40.0f;
 	
 	int x, y;
 	SDL_SetRelativeMouseMode(SDL_TRUE);
@@ -510,11 +512,12 @@ void update_mouse_keyboard_inputs(OVR::Vector3f& lin_inputs, OVR::Vector3f& ang_
 	buttons[1] = (float)(sdl_key[SDLK_s])? 1.0f : 0.0f;
 	buttons[2] = (float)(sdl_key[SDLK_a])? 1.0f : 0.0f;
 	buttons[3] = (float)(sdl_key[SDLK_d])? 1.0f : 0.0f;
-	buttons[4] = (float)(butts & 1)? 1.0f : 0.0f;
-	buttons[5] = (float)(butts & 4)? 1.0f : 0.0f;
-
-	ang_inputs += OVR::Vector3f(axes[1], -axes[0], buttons[4] * 0.25f - buttons[5] * 0.25f) * look_speed;
-	lin_inputs += OVR::Vector3f(buttons[3] - buttons[2], 0.0f, buttons[1] - buttons[0]) * move_speed;
+	buttons[4] = (float)(butts &  1)? 1.0f : 0.0f;
+	buttons[5] = (float)(butts &  4)? 1.0f : 0.0f;
+	buttons[6] = (float)(butts &  8)? 1.0f : 0.0f;
+	
+	ang_inputs += OVR::Vector3f(axes[1], -axes[0], buttons[5] * 0.25f - buttons[4] * 0.25f) * look_speed;
+	lin_inputs += OVR::Vector3f(buttons[3] - buttons[2], 0.0f, buttons[1] - buttons[0]) * (move_speed + fast_speed * buttons[6]);
 }
 
 void update_body(float dt)

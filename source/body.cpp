@@ -33,8 +33,8 @@ void Body::apply_inputs(const OVR::Vector3f& lin_inputs, const OVR::Vector3f& an
 	m_angular_velocity += scale(ang_inputs, angAccel * dt);
 	m_angular_velocity = clamp(m_angular_velocity, -angSpeed, angSpeed);
 
-	static OVR::Vector3f linAccel(0.1f, 0.1f, 0.1f);
-	static OVR::Vector3f linSpeed(1.0f, 1.0f, 1.0f);
+	static OVR::Vector3f linAccel(1.0f, 1.0f, 1.0f);
+	static OVR::Vector3f linSpeed(5.0f, 5.0f, 5.0f);
 	static float linFriction = 0.075f;
 	m_linear_velocity -= m_linear_velocity * linFriction;
 	m_linear_velocity += scale(lin_inputs, linAccel * dt);
